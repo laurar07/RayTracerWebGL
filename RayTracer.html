@@ -66,6 +66,91 @@
 	return true;
   
   }
+  
+  bool rayPlaneIntersection(vec3 rayPos, vec3 rayDir, float A, float B, float C float D, out vec3 intersect) {
+	double denominator = A * rayDir.x + B * rayDir.y + C * rayDir.z;
+	if (denom == 0)
+		return false;
+	double numerator = -1.0 * (A * rayPos.x + B * rayPos.y + C * rayPos.z + D);
+	
+	double result = numerator / denominator;
+
+	intersect.x = rayPos.x + t * RayDir.x;
+	intersect.y = rayPos.y + t * RayDir.y;
+	intersect.z = rayPos.z + t * RayDir.z;
+	
+	return true;
+  }
+  
+  bool get2Dcoordinates(vec3 vertex1, vec3 vertex2, vec3 vertex3, out float vec1x, out float vec1y, out float vec2x, out float vec2y, out float vec3x, out float vec3y)
+  {
+	//First, project onto z = 0 plane
+	double result = (double)(0.5) * ((double)(vertex2.x - vertex1.x) * (double)(vertex3.y - vertex1.y) - (double)(vertex3.x - vertex1.x) * (double)(vertex2.y - vertex1.y));
+	if(result != 0) {
+		vec1x = vertex1.x;
+		vec1y = vertex1.y;
+		vec2x = vertex2.x;
+		vec2y = vertex2.y;
+		vec3x = vertex3.x;
+		vec3y = vertex3.y;
+		
+		return true;
+	}
+		
+    //Project onto y = 0;
+	result = (double)(0.5) * ((double)(vertex2.x - vertex1.x) * (double)(vertex3.z - vertex1.z) - (double)(vertex3.x - vertex1.x) * (double)(vertex2.z - vertex1.z));
+	if(result != 0) {
+		vec1x = vertex1.x;
+		vec1y = vertex1.z;
+		vec2x = vertex2.x;
+		vec2y = vertex2.z;
+		vec3x = vertex3.x;
+		vec3y = vertex3.z;
+		
+		return true;
+	}
+	
+	//Project onto x = 0
+	result = (double)(0.5) * ((double)(vertex2.y - vertex1.y) * (double)(vertex3.z - vertex1.z) - (double)(vertex3.y - vertex1.y) * (double)(vertex2.z - vertex1.z));
+	if(result != 0) {
+		vec1x = vertex1.y;
+		vec1y = vertex1.z;
+		vec2x = vertex2.y;
+		vec2y = vertex2.z;
+		vec3x = vertex3.y;
+		vec3y = vertex3.z;
+		
+		return true;
+	}
+	
+	return false;
+  }
+  
+  bool computeAreas(vec3 p, float vec1x, float vec1y, float vec2x, float vec2y, float vec3x, float vec3y, out float result)
+  {
+	double num_alpha = area(p.x, p.y, p2x, p2y, p3x, p3y);
+	double alpha = (double) num_alpha / (double) denom;
+
+	double num_beta = area(p1x, p1y, p.x, p.y, p3x, p3y);
+	double beta = (double) num_beta / (double) denom;
+	
+	double num_gamma = area(p1x, p1y, p2x, p2y, p.x, p.y);
+	double gamma = (double) num_gamma / (double) denom;
+
+	total = alpha + beta + gamma;
+	
+	if(alpha > 0 && beta > 0 && gamma > 0)
+		return true;
+	else
+		return false;
+  }
+  
+  double area(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y)
+  {
+
+	double result = (double)(0.5) * ((double)(p2x - p1x) * (double)(p3y - p1y) - (double)(p3x - p1x) * (double)(p2y - p1y));
+	return result;
+  }
 
   vec3 lightAt(vec3 N, vec3 V, vec3 color) {
     vec3 L = lightDir;
