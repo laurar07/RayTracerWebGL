@@ -42,6 +42,28 @@
 	//If we are here, we found an intersection
     return true;
   }
+  
+  bool defineContainingPlane(vec3 v1, vec3 v2, vec3 v3, out float A, out float B, out float C, out float D) {
+	
+	//First, draw a normal from 2 vectors
+	vec3 v1v2 = normalize(v2 - v1);
+	vec3 v1v3 = normalize(v3 - v1);
+	
+	vec3 normalToPlane = normalize(cross(v1v2, v1v3));
+	
+	//The equation of the plane is Ax + By + Cz + D = 0;
+	A = normalToPlane.x;
+	B = normalToPlane.y;
+	C = normalToPlane.z;
+	
+	//Take any point to calculate D
+	//D = -(Ax + By + Cz)
+	
+	D = -(A * v2.x + B * v2.y + C * v2.z);
+	
+	return true;
+  
+  }
 
   vec3 lightAt(vec3 N, vec3 V, vec3 color) {
     vec3 L = lightDir;
