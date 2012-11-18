@@ -59,13 +59,14 @@
 	//Take any point to calculate D
 	//D = -(Ax + By + Cz)
 	
-	D = -(A * v2.x + B * v2.y + C * v2.z);
+	D = -1.0 * (A * v2.x + B * v2.y + C * v2.z);
 	
 	return true;
   
   }
   
   bool rayPlaneIntersection(vec3 rayPos, vec3 rayDir, float A, float B, float C, float D, out vec3 intersect) {
+  
 	float denominator = A * rayDir.x + B * rayDir.y + C * rayDir.z;
 	if (denominator == 0.0)
 		return false;
@@ -83,8 +84,8 @@
   bool get2Dcoordinates(vec3 vertex1, vec3 vertex2, vec3 vertex3, out float vec1x, out float vec1y, out float vec2x, out float vec2y, out float vec3x, out float vec3y, out float result)
   {
 	//First, project onto z = 0 plane
-	result = (float)(0.5) * ((float)(vertex2.x - vertex1.x) * (float)(vertex3.y - vertex1.y) - (float)(vertex3.x - vertex1.x) * (float)(vertex2.y - vertex1.y));
-	if(result != 0) {
+	result = (0.5) * ((vertex2.x - vertex1.x) * (vertex3.y - vertex1.y) - (vertex3.x - vertex1.x) * (vertex2.y - vertex1.y));
+	if (result != 0.0) {
 		vec1x = vertex1.x;
 		vec1y = vertex1.y;
 		vec2x = vertex2.x;
@@ -96,8 +97,8 @@
 	}
 		
     //Project onto y = 0;
-	result = (float)(0.5) * ((float)(vertex2.x - vertex1.x) * (float)(vertex3.z - vertex1.z) - (float)(vertex3.x - vertex1.x) * (float)(vertex2.z - vertex1.z));
-	if(result != 0) {
+	result = (0.5) * ((vertex2.x - vertex1.x) * (vertex3.z - vertex1.z) - (vertex3.x - vertex1.x) * (vertex2.z - vertex1.z));
+	if (result != 0.0) {
 		vec1x = vertex1.x;
 		vec1y = vertex1.z;
 		vec2x = vertex2.x;
@@ -109,8 +110,8 @@
 	}
 	
 	//Project onto x = 0
-	result = (float)(0.5) * ((float)(vertex2.y - vertex1.y) * (float)(vertex3.z - vertex1.z) - (float)(vertex3.y - vertex1.y) * (float)(vertex2.z - vertex1.z));
-	if(result != 0) {
+	result = (0.5) * ((vertex2.y - vertex1.y) * (vertex3.z - vertex1.z) - (vertex3.y - vertex1.y) * (vertex2.z - vertex1.z));
+	if (result != 0.0) {
 		vec1x = vertex1.y;
 		vec1y = vertex1.z;
 		vec2x = vertex2.y;
@@ -127,31 +128,31 @@
   float area(float p1x, float p1y, float p2x, float p2y, float p3x, float p3y)
   {
 
-	float result = (float)(0.5) * ((float)(p2x - p1x) * (float)(p3y - p1y) - (float)(p3x - p1x) * (float)(p2y - p1y));
+	float result = (0.5) * ((p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y));
 	return result;
   }
   
-  bool computeAreas(vec3 p, float vec1x, float vec1y, float vec2x, float vec2y, float vec3x, float vec3y, float denom)
+  bool computeAreas(vec3 p, float p1x, float p1y, float p2x, float p2y, float p3x, float p3y, float denom)
   {
 	float num_alpha = area(p.x, p.y, p2x, p2y, p3x, p3y);
-	float alpha = (float) num_alpha / (float) denom;
+	float alpha = num_alpha / denom;
 
 	float num_beta = area(p1x, p1y, p.x, p.y, p3x, p3y);
-	float beta = (float) num_beta / (float) denom;
+	float beta = num_beta / denom;
 	
 	float num_gamma = area(p1x, p1y, p2x, p2y, p.x, p.y);
-	float gamma = (float) num_gamma / (float) denom;
+	float gamma = num_gamma / denom;
 
-	total = alpha + beta + gamma;
+	//float total = alpha + beta + gamma;
 	
-	if(alpha > 0 && beta > 0 && gamma > 0) {
+	if(alpha > 0.0 && beta > 0.0 && gamma > 0.0) {
 		return true;
 	}
 	else
 		return false;
   }
   
-  bool intersectTriangle(vec3 v1, vec3 v2, vec3 v3, vec3 lStart, vec3 lDir, out float dist) {
+  bool intersectTriangle(vec3 v1, vec3 v2, vec3 v3, vec3 lStart, vec3 lDir, out float dist, out vec3 triangle_norm) {
   
 	//First, define containing plane
 	float A, B, C, D;
@@ -168,17 +169,21 @@
 	}
 	
 	//Get 2D coordinates
+	
 	float vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom;
 	get2Dcoordinates(v1, v2, v3, vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom);
 	
 	//result = sqrt(pow((p.x - ray.origin[0]), 2) + pow((curr_min.y - ray.origin[1]), 2) + pow((curr_min.z - ray.origin[2]), 2));
 	//Check if the intersection is inside the triangle
+	
 	if(!(computeAreas(intersectPt, vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom))) {
 		dist = 10000.0; 
 		return false;
 	}
 	
-	dist = sqrt(pow((intersectPt.x - lStart.x), 2) + pow((intersectPt.y - lStart.y), 2) + pow((intersectPt.z - lStart.z), 2));
+	dist = sqrt(pow((intersectPt.x - lStart.x), 2.0) + pow((intersectPt.y - lStart.y), 2.0) + pow((intersectPt.z - lStart.z), 2.0));
+	
+	triangle_norm.x = A; triangle_norm.y = B; triangle_norm.z = C;
 	
 	//If we are here, we found an intersection
 	return true;
@@ -202,13 +207,13 @@
                       out vec3 normal, out vec3 color) {
     float d1, d2, d3, d4;
     bool h1, h2, h3, h4;
-
+	vec3 triangle_norm;	
 	//Calculate the intersections with 3 spheres
 	//d1, d2, d3 represent the distances
     h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
     h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
     h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
-	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4);
+	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
     if (h1 && d1 < d2 && d1 < d3 && d1 < d4) {
 		//Sphere1 intersected and the intersection is the smallest distance
@@ -230,9 +235,10 @@
     }
 	else if(h4) {
 		//Triangle intersected
-		pos = lStart + d3 * lDir;
-		normal = pos - sphere3Center;
-		color = vec3(0.9, 0.9, 0.9);
+		pos = lStart + d4 * lDir;
+		//normal = pos - sphere3Center;
+		normal = triangle_norm;
+		color = vec3(0.0, 1.0, 0.0);
 	}
     else if (lDir.y < -0.01) {
 		//No sphere intersections
@@ -435,6 +441,7 @@
   t = 0;
   function drawScene()
   {
+  /*
     x1 = Math.sin(t * 1.1) * 1.5;
     y1 = Math.cos(t * 1.3) * 1.5;
     z1 = Math.sin(t + Math.PI/3) * 1.5;
@@ -444,6 +451,16 @@
     x3 = Math.cos(t * 1.15) * 1.5;
     y3 = Math.sin(t * 1.37) * 1.5;
     z3 = Math.sin(t*1.27) * 1.5;
+	*/
+	x1 = Math.sin(0.0) * 1.5;
+    y1 = Math.cos(0.0) * 1.5;
+    z1 = Math.sin(Math.PI/3) * 1.5;
+    x2 = Math.cos(0.0) * 1.5;
+    y2 = Math.sin(0.0) * 1.5;
+    z2 = Math.sin(- Math.PI/3) * 1.5;
+    x3 = Math.cos(0.0) * 1.5;
+    y3 = Math.sin(0.0) * 1.5;
+    z3 = Math.sin(0.0) * 1.5;
 	
 	//Define the points for the triangle
 	x4 = Math.sin(t * 1.5) * 1.5;
@@ -502,10 +519,12 @@
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
+	
     t += 0.03;
     if (t > Math.PI * 200) {
       t -= Math.PI * 200;
     }
+	
   }
 
   var timer = 0;
