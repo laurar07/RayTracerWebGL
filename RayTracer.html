@@ -16,8 +16,6 @@
   uniform vec3 triangleVertex1;
   uniform vec3 triangleVertex2;
   uniform vec3 triangleVertex3;
-  
-  //hello
 
   bool intersectSphere(vec3 center, vec3 lStart, vec3 lDir,
                        out float dist) {
@@ -28,15 +26,15 @@
 	float d = b*b - dot(c, c) + 1.0; //First, calculate the determinant
     if (d < 0.0) {
 		//If the determinant is zero, no intersection
-      dist = 10000.0; //Place the distance at a really high value
-      return false;
+		dist = 10000.0; //Place the distance at a really high value
+		return false;
     }
 
 	//Calculate the root of the equation
     dist = b - sqrt(d);
 	
     if (dist < 0.0) {
-		//If the root is negative, no intersection
+	  //If the root is negative, no intersection
       dist = 10000.0; //Place the distance at a really high value 
       return false;
     }
@@ -67,25 +65,25 @@
   
   }
   
-  bool rayPlaneIntersection(vec3 rayPos, vec3 rayDir, float A, float B, float C float D, out vec3 intersect) {
-	double denominator = A * rayDir.x + B * rayDir.y + C * rayDir.z;
-	if (denom == 0)
+  bool rayPlaneIntersection(vec3 rayPos, vec3 rayDir, float A, float B, float C, float D, out vec3 intersect) {
+	float denominator = A * rayDir.x + B * rayDir.y + C * rayDir.z;
+	if (denominator == 0.0)
 		return false;
-	double numerator = -1.0 * (A * rayPos.x + B * rayPos.y + C * rayPos.z + D);
+	float numerator = -1.0 * (A * rayPos.x + B * rayPos.y + C * rayPos.z + D);
 	
-	double result = numerator / denominator;
+	float t = numerator / denominator;
 
-	intersect.x = rayPos.x + t * RayDir.x;
-	intersect.y = rayPos.y + t * RayDir.y;
-	intersect.z = rayPos.z + t * RayDir.z;
+	intersect.x = rayPos.x + t * rayDir.x;
+	intersect.y = rayPos.y + t * rayDir.y;
+	intersect.z = rayPos.z + t * rayDir.z;
 	
 	return true;
   }
   
-  bool get2Dcoordinates(vec3 vertex1, vec3 vertex2, vec3 vertex3, out float vec1x, out float vec1y, out float vec2x, out float vec2y, out float vec3x, out float vec3y)
+  bool get2Dcoordinates(vec3 vertex1, vec3 vertex2, vec3 vertex3, out float vec1x, out float vec1y, out float vec2x, out float vec2y, out float vec3x, out float vec3y, out float result)
   {
 	//First, project onto z = 0 plane
-	double result = (double)(0.5) * ((double)(vertex2.x - vertex1.x) * (double)(vertex3.y - vertex1.y) - (double)(vertex3.x - vertex1.x) * (double)(vertex2.y - vertex1.y));
+	result = (float)(0.5) * ((float)(vertex2.x - vertex1.x) * (float)(vertex3.y - vertex1.y) - (float)(vertex3.x - vertex1.x) * (float)(vertex2.y - vertex1.y));
 	if(result != 0) {
 		vec1x = vertex1.x;
 		vec1y = vertex1.y;
@@ -98,7 +96,7 @@
 	}
 		
     //Project onto y = 0;
-	result = (double)(0.5) * ((double)(vertex2.x - vertex1.x) * (double)(vertex3.z - vertex1.z) - (double)(vertex3.x - vertex1.x) * (double)(vertex2.z - vertex1.z));
+	result = (float)(0.5) * ((float)(vertex2.x - vertex1.x) * (float)(vertex3.z - vertex1.z) - (float)(vertex3.x - vertex1.x) * (float)(vertex2.z - vertex1.z));
 	if(result != 0) {
 		vec1x = vertex1.x;
 		vec1y = vertex1.z;
@@ -111,7 +109,7 @@
 	}
 	
 	//Project onto x = 0
-	result = (double)(0.5) * ((double)(vertex2.y - vertex1.y) * (double)(vertex3.z - vertex1.z) - (double)(vertex3.y - vertex1.y) * (double)(vertex2.z - vertex1.z));
+	result = (float)(0.5) * ((float)(vertex2.y - vertex1.y) * (float)(vertex3.z - vertex1.z) - (float)(vertex3.y - vertex1.y) * (float)(vertex2.z - vertex1.z));
 	if(result != 0) {
 		vec1x = vertex1.y;
 		vec1y = vertex1.z;
@@ -126,30 +124,65 @@
 	return false;
   }
   
-  bool computeAreas(vec3 p, float vec1x, float vec1y, float vec2x, float vec2y, float vec3x, float vec3y, out float result)
+  float area(float p1x, float p1y, float p2x, float p2y, float p3x, float p3y)
   {
-	double num_alpha = area(p.x, p.y, p2x, p2y, p3x, p3y);
-	double alpha = (double) num_alpha / (double) denom;
 
-	double num_beta = area(p1x, p1y, p.x, p.y, p3x, p3y);
-	double beta = (double) num_beta / (double) denom;
+	float result = (float)(0.5) * ((float)(p2x - p1x) * (float)(p3y - p1y) - (float)(p3x - p1x) * (float)(p2y - p1y));
+	return result;
+  }
+  
+  bool computeAreas(vec3 p, float vec1x, float vec1y, float vec2x, float vec2y, float vec3x, float vec3y, float denom)
+  {
+	float num_alpha = area(p.x, p.y, p2x, p2y, p3x, p3y);
+	float alpha = (float) num_alpha / (float) denom;
+
+	float num_beta = area(p1x, p1y, p.x, p.y, p3x, p3y);
+	float beta = (float) num_beta / (float) denom;
 	
-	double num_gamma = area(p1x, p1y, p2x, p2y, p.x, p.y);
-	double gamma = (double) num_gamma / (double) denom;
+	float num_gamma = area(p1x, p1y, p2x, p2y, p.x, p.y);
+	float gamma = (float) num_gamma / (float) denom;
 
 	total = alpha + beta + gamma;
 	
-	if(alpha > 0 && beta > 0 && gamma > 0)
+	if(alpha > 0 && beta > 0 && gamma > 0) {
 		return true;
+	}
 	else
 		return false;
   }
   
-  double area(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y)
-  {
-
-	double result = (double)(0.5) * ((double)(p2x - p1x) * (double)(p3y - p1y) - (double)(p3x - p1x) * (double)(p2y - p1y));
-	return result;
+  bool intersectTriangle(vec3 v1, vec3 v2, vec3 v3, vec3 lStart, vec3 lDir, out float dist) {
+  
+	//First, define containing plane
+	float A, B, C, D;
+	if (!(defineContainingPlane(v1, v2, v3, A, B, C, D))) {
+		dist = 10000.0; 
+		return false;
+	}
+	
+	//Get the intersection with the plane
+	vec3 intersectPt;
+	if(!(rayPlaneIntersection(lStart, lDir, A, B, C, D, intersectPt))) {
+		dist = 10000.0; 
+		return false;
+	}
+	
+	//Get 2D coordinates
+	float vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom;
+	get2Dcoordinates(v1, v2, v3, vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom);
+	
+	//result = sqrt(pow((p.x - ray.origin[0]), 2) + pow((curr_min.y - ray.origin[1]), 2) + pow((curr_min.z - ray.origin[2]), 2));
+	//Check if the intersection is inside the triangle
+	if(!(computeAreas(intersectPt, vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom))) {
+		dist = 10000.0; 
+		return false;
+	}
+	
+	dist = sqrt(pow((intersectPt.x - lStart.x), 2) + pow((intersectPt.y - lStart.y), 2) + pow((intersectPt.z - lStart.z), 2));
+	
+	//If we are here, we found an intersection
+	return true;
+  
   }
 
   vec3 lightAt(vec3 N, vec3 V, vec3 color) {
@@ -167,33 +200,40 @@
 
   bool intersectWorld(vec3 lStart, vec3 lDir, out vec3 pos,
                       out vec3 normal, out vec3 color) {
-    float d1, d2, d3;
-    bool h1, h2, h3;
+    float d1, d2, d3, d4;
+    bool h1, h2, h3, h4;
 
 	//Calculate the intersections with 3 spheres
 	//d1, d2, d3 represent the distances
     h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
     h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
     h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
+	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4);
 
-    if (h1 && d1 < d2 && d1 < d3) {
+    if (h1 && d1 < d2 && d1 < d3 && d1 < d4) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
 		color = vec3(0.0, 0.0, 0.9);
     }
-    else if (h2 && d2 < d3) {
+    else if (h2 && d2 < d3 && d2 < d4) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
 		color = vec3(0.9, 0.0, 0.0);
     }
-    else if (h3) {
+    else if (h3 && d3 < d4) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
 		color = vec3(0.0, 0.9, 0.0);
     }
+	else if(h4) {
+		//Triangle intersected
+		pos = lStart + d3 * lDir;
+		normal = pos - sphere3Center;
+		color = vec3(0.9, 0.9, 0.9);
+	}
     else if (lDir.y < -0.01) {
 		//No sphere intersections
 		//This checks intersections with the floor
