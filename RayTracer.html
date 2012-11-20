@@ -311,7 +311,7 @@
   var gl;
   function initGL(canvas) {
     try {
-      gl = canvas.getContext("experimental-webgl");
+      gl = canvas.getContext('experimental-webgl', { antialias: true, stencil: true });
       gl.viewport(0, 0, canvas.width, canvas.height);
     } catch(e) {
     }
