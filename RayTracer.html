@@ -8,6 +8,8 @@
   precision mediump float;
 
   const vec3 lightDir = vec3(0.577350269, 0.577350269, -0.577350269);
+  const vec3 lightDir2 = vec3(0.577350280, 0.577350280, -0.577350280);
+  const vec3 lightDir3 = vec3(0.577350255, 0.577350255, -0.577350255);
   varying vec3 vPosition;
   uniform vec3 cameraPos;
   uniform vec3 sphere1Center;
@@ -191,11 +193,20 @@
   }
 
   vec3 lightAt(vec3 N, vec3 V, vec3 color) {
-    vec3 L = lightDir;
-    vec3 R = reflect(-L, N);
+    vec3 L1 = lightDir;
+	vec3 L2 = lightDir2;
+	vec3 L3 = lightDir3;
+	float I1 = 1.0;
+	//float I2 = 0.5;
+	//float I3 = 0.5;
+    vec3 R1 = reflect(-L1, N);
+	vec3 R2 = reflect(-L2, N);
+	vec3 R3 = reflect(-L3, N);
 
-    float c = 0.3 + 0.4 * pow(max(dot(R, V), 0.0), 30.0) + 0.7 * dot(L, N);
-
+    float c = 0.3 + I1 * 0.4 * pow(max(dot(R1, V), 0.0), 30.0) + I1 * 0.7 * dot(L1, N);
+	//c += I2 * 0.4 * pow(max(dot(R2, V), 0.0), 30.0) + I2 * 0.7 * dot(L2, N);
+	//c += I3 * 0.4 * pow(max(dot(R3, V), 0.0), 30.0) + I3 * 0.7 * dot(L3, N);
+	
     if (c > 1.0) {
       return mix(color, vec3(1.6, 1.6, 1.6), c - 1.0);
     }
