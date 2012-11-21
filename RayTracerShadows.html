@@ -338,13 +338,10 @@
 	  vec4 newObject;
 	  int newFloor;
 	  if (intersectWorld(p1, lightDir, /*objectToExclude, excludeFloor, */p2, norm, colT/*, newObject, newFloor*/)) {
-        col += lightAt(norm, -cameraDir, colT) * colM;
+        //col += lightAt(norm, -cameraDir, colT) * colM;
+		col.x = 0.0; col.y = 0.0; col.z = 0.0;
         colM *= (colT + vec3(0.7)) / 1.7;
         cameraDir = reflect(cameraDir, norm); //Reflect the ray from the camera
-		/*
-        if (intersectWorld(p2, cameraDir, p1, norm, colT)) {
-          col += lightAt(norm, -cameraDir, colT) * colM;
-        }*/
       }
       gl_FragColor = vec4(col, 1.0);
     }
