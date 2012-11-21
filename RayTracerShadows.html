@@ -252,8 +252,8 @@
     return c * color;
   }
   
-  bool intersectWorld(vec3 lStart, vec3 lDir, out vec3 pos,
-                      out vec3 normal, out vec3 color) {
+  bool intersectWorld(vec3 lStart, vec3 lDir, /*vec4 excludeObject, int excludeFloor,*/ out vec3 pos,
+                      out vec3 normal, out vec3 color/*, out vec4 objectHit, out int floorHit*/) {
     float d1, d2, d3, d4;
     bool h1, h2, h3, h4;
 	vec3 triangle_norm;	
@@ -264,32 +264,36 @@
     h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
 	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
-    if (h1 && d1 < d2 && d1 < d3 && d1 < d4) {
+    if (h1 && d1 < d2 && d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
 		color = vec3(0.0, 0.0, 0.9);
+		//objectHit.x = 1.0;
     }
-    else if (h2 && d2 < d3 && d2 < d4) {
+    else if (h2 && d2 < d3 && d2 < d4 /*&& excludeObject.y != 1.0*/) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
 		color = vec3(0.9, 0.0, 0.0);
+		//objectHit.y = 1.0;
     }
-    else if (h3 && d3 < d4) {
+    else if (h3 && d3 < d4 /*&& excludeObject.z != 1.0*/) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
 		color = vec3(0.0, 0.9, 0.0);
+		//objectHit.z = 1.0;
     }
-	else if(h4) {
+	else if(h4 /*&& excludeObject.w != 1.0*/) {
 		//Triangle intersected
 		pos = lStart + d4 * lDir;
 		//normal = pos - sphere3Center;
 		normal = triangle_norm;
 		color = vec3(0.0, 1.0, 0.0);
+		//objectHit.w = 1.0;
 	}
-    else if (lDir.y < -0.01) {
+    else if (lDir.y < -0.01 /*&& excludeFloor != 1*/) {
 		//No sphere intersections
 		//This checks intersections with the floor
 		pos = lStart + ((lStart.y + 2.7) / -lDir.y) * lDir;
@@ -303,6 +307,7 @@
 		else {
 			color = vec3(0.0, 0.0, 1.0);
 		}
+		//floorHit = 1;
 	}
     else {
 		//No intersections with spheres or floor -- return false
@@ -317,39 +322,30 @@
     vec3 cameraDir = normalize(vPosition - cameraPos);
 
     vec3 p1, norm, p2;
-    vec3 col;
+    vec3 col, colT, colM, col3;
+	vec4 objectToExclude;
+	vec4 initialObjects; initialObjects.x = 0.0; initialObjects.y = 0.0; initialObjects.z = 0.0; initialObjects.w = 0.0;
+	int excludeFloor;
 	//Shoot the first ray from the camera location -- get position, normal and color
-    if (intersectWorld(cameraPos, cameraDir, p1, norm, col)) {
-		
-		//Check if it hits the light, if not it will be in the shadow
-		float offset = 0.01;
-		p1.x += offset;
-		p1.y += offset;
-		p1.z += offset;
-		vec3 LVector = normalize(lightDir - p1);
-		if(!(intersectWorld(p1, LVector, p2, norm, col))) {
-			//Point is in the light
-			col = lightAtWithL(norm, -cameraDir, LVector, col);
-			//colM = (colT + vec3(0.7)) / 1.7;
-		
-		} else {
-		
-			//Point is in shadow
-			col.x = 0.3; //Ambient light only
-			col.y = 0.3;
-			col.z = 0.3;
-			//col = lightAt(norm, cameraDir, col);
-		}
-      
-	  //cameraDir = reflect(cameraDir, norm); //Reflect the ray from the camera
-      //if (intersectWorld(p1, cameraDir, p2, norm, colT)) {
-        //col += lightAt(norm, -cameraDir, colT) * colM;
-        //colM *= (colT + vec3(0.7)) / 1.7;
-        //cameraDir = reflect(cameraDir, norm); //Reflect the ray from the camera
-        //if (intersectWorld(p2, cameraDir, p1, norm, colT)) {
-          //col += lightAt(norm, -cameraDir, colT) * colM;
-        //}
-      //}
+    if (intersectWorld(cameraPos, cameraDir, /*initialObjects, 0, */p1, norm, colT/*, objectToExclude, excludeFloor*/)) {
+      col = lightAt(norm, -cameraDir, colT);
+      colM = (colT + vec3(0.7)) / 1.7;
+      //cameraDir = reflect(cameraDir, norm); //Reflect the ray from the camera
+      float offset = 1.0;
+	  p1.x += offset;
+	  p1.y += offset;
+	  p1.z += offset;
+	  vec4 newObject;
+	  int newFloor;
+	  if (intersectWorld(p1, lightDir, /*objectToExclude, excludeFloor, */p2, norm, colT/*, newObject, newFloor*/)) {
+        col += lightAt(norm, -cameraDir, colT) * colM;
+        colM *= (colT + vec3(0.7)) / 1.7;
+        cameraDir = reflect(cameraDir, norm); //Reflect the ray from the camera
+		/*
+        if (intersectWorld(p2, cameraDir, p1, norm, colT)) {
+          col += lightAt(norm, -cameraDir, colT) * colM;
+        }*/
+      }
       gl_FragColor = vec4(col, 1.0);
     }
     else {
@@ -585,12 +581,12 @@
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-	/*
+	
     t += 0.03;
     if (t > Math.PI * 200) {
       t -= Math.PI * 200;
     }
-	*/
+	
   }
 
   var timer = 0;
