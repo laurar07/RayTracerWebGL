@@ -1,0 +1,789 @@
+<html>
+
+<head>
+<title>Ray tracer using WebGL</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script id="shader-fs" type="x-shader/x-fragment">
+  precision mediump float;
+
+  const vec3 lightDir = vec3(0.577350269, 0.577350269, -0.577350269);
+  const vec3 lightDir2 = vec3(0.581350269, 0.581350269, -0.573350269);
+  const vec3 lightDir3 = vec3(0.585350269, 0.585350269, -0.569350269);
+  const vec3 lightDir4 = vec3(0.573350269, 0.573350269, -0.581350269);
+  const vec3 lightDir5 = vec3(0.569350269, 0.569350269, -0.585350269);
+  
+  const vec3 light2Dir = vec3(-0.577350269, 0.577350269, 0.577350269);
+  const vec3 light2Dir2 = vec3(-0.581350269, 0.581350269, 0.573350269);
+  const vec3 light2Dir3 = vec3(-0.585350269, 0.585350269, 0.569350269);
+  const vec3 light2Dir4 = vec3(-0.573350269, 0.573350269, 0.581350269);
+  const vec3 light2Dir5 = vec3(-0.569350269, 0.569350269, 0.585350269);
+  
+  varying vec3 vPosition;
+  uniform vec3 cameraPos;
+  uniform vec3 sphere1Center;
+  uniform vec3 sphere2Center;
+  uniform vec3 sphere3Center;
+  uniform vec3 triangleVertex1;
+  uniform vec3 triangleVertex2;
+  uniform vec3 triangleVertex3;
+
+  bool intersectSphere(vec3 center, vec3 lStart, vec3 lDir,
+                       out float dist) {
+					   
+	//Spheres have been designed with radius of 1.0
+    vec3 c = center - lStart;
+    float b = dot(lDir, c);
+	float d = b*b - dot(c, c) + 1.0; //First, calculate the determinant
+    if (d < 0.0) {
+		//If the determinant is zero, no intersection
+		dist = 10000.0; //Place the distance at a really high value
+		return false;
+    }
+
+	//Calculate the root of the equation
+    dist = b - sqrt(d);
+	
+    if (dist < 0.0) {
+	  //If the root is negative, no intersection
+      dist = 10000.0; //Place the distance at a really high value 
+      return false;
+    }
+
+	//If we are here, we found an intersection
+    return true;
+  }
+  
+  bool defineContainingPlane(vec3 v1, vec3 v2, vec3 v3, out float A, out float B, out float C, out float D) {
+	
+	//First, draw a normal from 2 vectors
+	vec3 v1v2 = normalize(v2 - v1);
+	vec3 v1v3 = normalize(v3 - v1);
+	
+	vec3 normalToPlane = normalize(cross(v1v2, v1v3));
+	
+	//The equation of the plane is Ax + By + Cz + D = 0;
+	A = normalToPlane.x;
+	B = normalToPlane.y;
+	C = normalToPlane.z;
+	
+	//Take any point to calculate D
+	//D = -(Ax + By + Cz)
+	
+	D = -1.0 * (A * v2.x + B * v2.y + C * v2.z);
+	
+	return true;
+  
+  }
+  
+  bool rayPlaneIntersection(vec3 rayPos, vec3 rayDir, float A, float B, float C, float D, out vec3 intersect) {
+  
+	float denominator = A * rayDir.x + B * rayDir.y + C * rayDir.z;
+	if (denominator == 0.0)
+		return false;
+	float numerator = -1.0 * (A * rayPos.x + B * rayPos.y + C * rayPos.z + D);
+	
+	float t = numerator / denominator;
+
+	intersect.x = rayPos.x + t * rayDir.x;
+	intersect.y = rayPos.y + t * rayDir.y;
+	intersect.z = rayPos.z + t * rayDir.z;
+	
+	return true;
+  }
+  
+  bool get2Dcoordinates(vec3 vertex1, vec3 vertex2, vec3 vertex3, out float vec1x, out float vec1y, out float vec2x, out float vec2y, out float vec3x, out float vec3y, out float result)
+  {
+	//First, project onto z = 0 plane
+	result = (0.5) * ((vertex2.x - vertex1.x) * (vertex3.y - vertex1.y) - (vertex3.x - vertex1.x) * (vertex2.y - vertex1.y));
+	if (result != 0.0) {
+		vec1x = vertex1.x;
+		vec1y = vertex1.y;
+		vec2x = vertex2.x;
+		vec2y = vertex2.y;
+		vec3x = vertex3.x;
+		vec3y = vertex3.y;
+		
+		return true;
+	}
+		
+    //Project onto y = 0;
+	result = (0.5) * ((vertex2.x - vertex1.x) * (vertex3.z - vertex1.z) - (vertex3.x - vertex1.x) * (vertex2.z - vertex1.z));
+	if (result != 0.0) {
+		vec1x = vertex1.x;
+		vec1y = vertex1.z;
+		vec2x = vertex2.x;
+		vec2y = vertex2.z;
+		vec3x = vertex3.x;
+		vec3y = vertex3.z;
+		
+		return true;
+	}
+	
+	//Project onto x = 0
+	result = (0.5) * ((vertex2.y - vertex1.y) * (vertex3.z - vertex1.z) - (vertex3.y - vertex1.y) * (vertex2.z - vertex1.z));
+	if (result != 0.0) {
+		vec1x = vertex1.y;
+		vec1y = vertex1.z;
+		vec2x = vertex2.y;
+		vec2y = vertex2.z;
+		vec3x = vertex3.y;
+		vec3y = vertex3.z;
+		
+		return true;
+	}
+	
+	return false;
+  }
+  
+  float area(float p1x, float p1y, float p2x, float p2y, float p3x, float p3y)
+  {
+
+	float result = (0.5) * ((p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y));
+	return result;
+  }
+  
+  bool computeAreas(vec3 p, float p1x, float p1y, float p2x, float p2y, float p3x, float p3y, float denom)
+  {
+	float num_alpha = area(p.x, p.y, p2x, p2y, p3x, p3y);
+	float alpha = num_alpha / denom;
+
+	float num_beta = area(p1x, p1y, p.x, p.y, p3x, p3y);
+	float beta = num_beta / denom;
+	
+	float num_gamma = area(p1x, p1y, p2x, p2y, p.x, p.y);
+	float gamma = num_gamma / denom;
+
+	//float total = alpha + beta + gamma;
+	
+	if(alpha > 0.0 && beta > 0.0 && gamma > 0.0) {
+		return true;
+	}
+	else
+		return false;
+  }
+  
+  bool intersectTriangle(vec3 v1, vec3 v2, vec3 v3, vec3 lStart, vec3 lDir, out float dist, out vec3 triangle_norm) {
+  
+	//First, define containing plane
+	float A, B, C, D;
+	if (!(defineContainingPlane(v1, v2, v3, A, B, C, D))) {
+		dist = 10000.0; 
+		return false;
+	}
+	
+	//Get the intersection with the plane
+	vec3 intersectPt;
+	if(!(rayPlaneIntersection(lStart, lDir, A, B, C, D, intersectPt))) {
+		dist = 10000.0; 
+		return false;
+	}
+	
+	//Get 2D coordinates
+	
+	float vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom;
+	get2Dcoordinates(v1, v2, v3, vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom);
+	
+	//result = sqrt(pow((p.x - ray.origin[0]), 2) + pow((curr_min.y - ray.origin[1]), 2) + pow((curr_min.z - ray.origin[2]), 2));
+	//Check if the intersection is inside the triangle
+	
+	if(!(computeAreas(intersectPt, vec1x, vec1y, vec2x, vec2y, vec3x, vec3y, denom))) {
+		dist = 10000.0; 
+		return false;
+	}
+	
+	dist = sqrt(pow((intersectPt.x - lStart.x), 2.0) + pow((intersectPt.y - lStart.y), 2.0) + pow((intersectPt.z - lStart.z), 2.0));
+	
+	triangle_norm.x = A; triangle_norm.y = B; triangle_norm.z = C;
+	
+	//If we are here, we found an intersection
+	return true;
+  
+  }
+
+  vec3 lightAt(vec3 N, vec3 V, vec3 L, float I, vec3 color) {
+    vec3 R = normalize(reflect(-L, N));
+
+	float spec = dot(R, V);
+	if(spec > 1.0)
+		spec = 1.0;
+		
+	float diff = dot(L, N);
+	if(diff > 1.0)
+		diff = 1.0;
+	
+    float c = 0.3 + I * 0.4 * pow(max(dot(R, V), 0.0), 30.0) + I * 0.7 * max(dot(L, N), 0.0);
+	
+    if (c > 1.0) {
+      return mix(color, vec3(1.6, 1.6, 1.6), c - 1.0);
+    }
+
+    return c * color;
+  }
+  
+  vec3 twoLightAt(vec3 N, vec3 V, vec3 L, float I, vec3 L2, float I2, vec3 color) {
+    
+	//First light
+	vec3 R = normalize(reflect(-L, N));
+
+	float spec = dot(R, V);
+	if(spec > 1.0)
+		spec = 1.0;
+	if(spec < 0.0)
+		spec = 0.0;
+		
+	float diff = dot(L, N);
+	if(diff > 1.0)
+		diff = 1.0;
+	if(diff < 0.0)
+		diff = 0.0;
+	
+    float c = I * 0.4 * pow(max(spec, 0.0), 30.0) + I * 0.7 * max(diff, 0.0);
+	
+	//Second light
+	vec3 R2 = normalize(reflect(-L2, N));
+
+	spec = dot(R2, V);
+	if(spec > 1.0)
+		spec = 1.0;
+	if(spec < 0.0)
+		spec = 0.0;
+		
+	diff = dot(L2, N);
+	if(diff > 1.0)
+		diff = 1.0;
+	if(diff < 0.0)
+		diff = 0.0;
+	
+    c += I2 * 0.4 * pow(max(spec, 0.0), 30.0) + I2 * 0.7 * max(diff, 0.0);
+	
+	//Add the ambient light
+	c += 0.3;
+	
+    if (c > 1.0) {
+      return mix(color, vec3(1.6, 1.6, 1.6), c - 1.0);
+    }
+
+    return c * color;
+  }
+  
+  bool intersectWorld(vec3 lStart, vec3 lDir, /*vec4 excludeObject, int excludeFloor,*/ out vec3 pos,
+                      out vec3 normal, out vec3 color/*, out vec4 objectHit, out int floorHit*/) {
+    float d1, d2, d3, d4;
+    bool h1, h2, h3, h4;
+	vec3 triangle_norm;	
+	//Calculate the intersections with 3 spheres
+	//d1, d2, d3 represent the distances
+    h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
+    h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
+    h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
+	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
+
+    if (h1 && d1 < d2 && d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
+		//Sphere1 intersected and the intersection is the smallest distance
+		pos = lStart + d1 * lDir;
+		normal = pos - sphere1Center;
+		color = vec3(0.0, 0.0, 0.9);
+		//objectHit.x = 1.0;
+    }
+    else if (h2 && d2 < d3 && d2 < d4 /*&& excludeObject.y != 1.0*/) {
+		//Sphere2 intersected and the intersection is the smallest distance
+		pos = lStart + d2 * lDir;
+		normal = pos - sphere2Center;
+		color = vec3(0.9, 0.0, 0.0);
+		//objectHit.y = 1.0;
+    }
+    else if (h3 && d3 < d4 /*&& excludeObject.z != 1.0*/) {
+		//Sphere3 intersected
+		pos = lStart + d3 * lDir;
+		normal = pos - sphere3Center;
+		color = vec3(0.0, 0.9, 0.0);
+		//objectHit.z = 1.0;
+    }
+	else if(h4 /*&& excludeObject.w != 1.0*/) {
+		//Triangle intersected
+		pos = lStart + d4 * lDir;
+		//normal = pos - sphere3Center;
+		normal = triangle_norm;
+		color = vec3(0.0, 1.0, 0.0);
+		//objectHit.w = 1.0;
+	}
+    else if (lDir.y < -0.01 /*&& excludeFloor != 1*/) {
+		//No sphere intersections
+		//This checks intersections with the floor
+		pos = lStart + ((lStart.y + 2.7) / -lDir.y) * lDir;
+		if (pos.x*pos.x + pos.z*pos.z > 30.0) {
+			return false;
+		}
+		normal = vec3(0.0, 1.0, 0.0);
+		if (fract(pos.x / 5.0) > 0.5 == fract(pos.z / 5.0) > 0.5) {
+			color = vec3(1.0, 0.0, 0.0);
+		}
+		else {
+			color = vec3(0.0, 0.0, 1.0);
+		}
+		//floorHit = 1;
+	}
+    else {
+		//No intersections with spheres or floor -- return false
+		return false;
+    }
+
+    return true;
+  }
+
+  void main(void)
+  {
+    vec3 cameraDir = normalize(vPosition - cameraPos);
+
+    vec3 p1, norm, norm1, p2;
+    vec3 col, col2, colT, colT1, colM, col3;
+	vec4 objectToExclude;
+	vec4 initialObjects; initialObjects.x = 0.0; initialObjects.y = 0.0; initialObjects.z = 0.0; initialObjects.w = 0.0;
+	int excludeFloor;
+	//Shoot the first ray from the camera location -- get position, normal and color
+    if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
+	
+	  colT1 = colT;		//Save the value of colT to use with the light calculation
+	  norm1 = norm;
+	  
+	  float offset = 1.0;
+	  p1.x += offset;
+	  p1.y += offset;
+	  p1.z += offset;
+	
+	//Do the following for each of the lights, then take the average
+      vec3 col1, col2, col3, col4, col5;
+	  float lightIntensity = 1.0;
+	  float lightIntensity2 = 0.9;
+	  float lightIntensity3 = 0.9;
+	  float lightIntensity4 = 0.8;
+	  float lightIntensity5 = 0.8;
+	  
+	  col1 = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
+	  col2 = lightAt(norm, -cameraDir, lightDir2, lightIntensity2, colT);
+	  col3 = lightAt(norm, -cameraDir, lightDir3, lightIntensity3, colT);
+	  col4 = lightAt(norm, -cameraDir, lightDir4, lightIntensity4, colT);
+	  col5 = lightAt(norm, -cameraDir, lightDir5, lightIntensity5, colT);
+	  
+	  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
+		col1.x = 0.0; col1.y = 0.0; col1.z = 0.0;
+      } else {
+		col.x += col1.x; col.y += col1.y; col.z += col1.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir2, p2, norm, colT)) {
+		col2.x = 0.0; col2.y = 0.0; col2.z = 0.0;
+      } else {
+		col.x += col2.x; col.y += col2.y; col.z += col2.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir3, p2, norm, colT)) {
+		col3.x = 0.0; col3.y = 0.0; col3.z = 0.0;
+      } else {
+		col.x += col3.x; col.y += col3.y; col.z += col3.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir4, p2, norm, colT)) {
+		col4.x = 0.0; col4.y = 0.0; col4.z = 0.0;
+      } else {
+		col.x += col4.x; col.y += col4.y; col.z += col4.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir5, p2, norm, colT)) {
+		col5.x = 0.0; col5.y = 0.0; col5.z = 0.0;
+      } else {
+		col.x += col5.x; col.y += col5.y; col.z += col5.z;
+	  }
+	  
+	  //Calculate col based on averaged values
+	  col.x = col.x / 5.0;
+	  col.y = col.y / 5.0;
+	  col.z = col.z / 5.0;
+	  
+	  vec3 col2vec, col21, col22, col23, col24, col25;
+	  
+	  col21 = lightAt(norm, -cameraDir, light2Dir, lightIntensity, colT1);
+	  col22 = lightAt(norm, -cameraDir, light2Dir2, lightIntensity2, colT1);
+	  col23 = lightAt(norm, -cameraDir, light2Dir3, lightIntensity3, colT1);
+	  col24 = lightAt(norm, -cameraDir, light2Dir4, lightIntensity4, colT1);
+	  col25 = lightAt(norm, -cameraDir, light2Dir5, lightIntensity5, colT1);
+	  
+	  if (intersectWorld(p1, lightDir, p2, norm, colT1)) {
+		col21.x = 0.0; col21.y = 0.0; col21.z = 0.0;
+      } else {
+		col2vec.x += col21.x; col2vec.y += col21.y; col2vec.z += col21.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir2, p2, norm, colT1)) {
+		col22.x = 0.0; col22.y = 0.0; col22.z = 0.0;
+      } else {
+		col2vec.x += col22.x; col2vec.y += col22.y; col2vec.z += col22.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir3, p2, norm, colT1)) {
+		col23.x = 0.0; col23.y = 0.0; col23.z = 0.0;
+      } else {
+		col2vec.x += col23.x; col2vec.y += col23.y; col2vec.z += col23.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir4, p2, norm, colT1)) {
+		col24.x = 0.0; col24.y = 0.0; col24.z = 0.0;
+      } else {
+		col2vec.x += col24.x; col2vec.y += col24.y; col2vec.z += col24.z;
+	  }
+	  
+	  if (intersectWorld(p1, lightDir5, p2, norm, colT1)) {
+		col25.x = 0.0; col25.y = 0.0; col25.z = 0.0;
+      } else {
+		col2vec.x += col25.x; col2vec.y += col25.y; col2vec.z += col25.z;
+	  }
+	  
+	  //Average out the results for the second light
+	  col2vec.x = col2vec.x / 5.0;
+	  col2vec.y = col2vec.y / 5.0;
+	  col2vec.z = col2vec.z / 5.0;
+	  
+	  //Merge the results from both lights
+	  col.x += col2vec.x;
+	  col.y += col2vec.y;
+	  col.z += col2vec.z;
+	  
+      gl_FragColor = vec4(col, 1.0);
+    }
+    else {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+  }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+  attribute vec2 aVertexPosition;
+  attribute vec3 aPlotPosition;
+
+  varying vec3 vPosition;
+
+  void main(void)
+  {
+    gl_Position = vec4(aVertexPosition, 1.0, 1.0);
+    vPosition = aPlotPosition;
+ }
+</script>
+
+
+<script type="application/x-javascript">
+
+  var gl;
+  function initGL(canvas) {
+    try {
+      gl = canvas.getContext('experimental-webgl', { antialias: true, stencil: true });
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    } catch(e) {
+    }
+    if (!gl) {
+      alert("Could not initialise WebGL, sorry :-(");
+    }
+  }
+
+  function getShader(gl, id)
+  {
+      var shaderScript = document.getElementById(id);
+      if (!shaderScript)
+          return null;
+
+      var shader;
+      if (shaderScript.type == "x-shader/x-fragment")
+      {
+          shader = gl.createShader(gl.FRAGMENT_SHADER);
+      }
+      else if (shaderScript.type == "x-shader/x-vertex")
+      {
+          shader = gl.createShader(gl.VERTEX_SHADER);
+      }
+      else
+      {
+          return null;
+      }
+
+      gl.shaderSource(shader, shaderScript.textContent);
+      gl.compileShader(shader);
+
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+      {
+          alert(gl.getShaderInfoLog(shader));
+          return null;
+      }
+
+      return shader;
+  }
+
+  var shaderProgram;
+  var aVertexPosition;
+  function initShaders()
+  {
+    var fragmentShader = getShader(gl, "shader-fs");
+    var vertexShader = getShader(gl, "shader-vs");
+
+    shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS))
+    {
+      alert("Could not initialize shaders");
+    }
+
+    gl.useProgram(shaderProgram);
+
+    aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(aVertexPosition);
+
+    aPlotPosition = gl.getAttribLocation(shaderProgram, "aPlotPosition");
+    gl.enableVertexAttribArray(aPlotPosition);
+
+    cameraPos = gl.getUniformLocation(shaderProgram, "cameraPos");
+    
+	//Set up the spheres
+	sphere1Center = gl.getUniformLocation(shaderProgram, "sphere1Center");
+    sphere2Center = gl.getUniformLocation(shaderProgram, "sphere2Center");
+    sphere3Center = gl.getUniformLocation(shaderProgram, "sphere3Center");
+	
+	//Set up the triangle
+	triangleVertex1 = gl.getUniformLocation(shaderProgram, "triangleVertex1");
+	triangleVertex2 = gl.getUniformLocation(shaderProgram, "triangleVertex2");
+	triangleVertex3 = gl.getUniformLocation(shaderProgram, "triangleVertex3");
+  }
+
+
+  function initBuffers()
+  {
+    vertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+    var vertices = [
+         1.0,  1.0,
+        -1.0,  1.0,
+         1.0, -1.0,
+        -1.0, -1.0,
+    ];
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+    gl.vertexAttribPointer(aVertexPosition, 2, gl.FLOAT, false, 0, 0);
+
+
+    var plotPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, plotPositionBuffer);
+    gl.vertexAttribPointer(aPlotPosition, 3, gl.FLOAT, false, 0, 0);
+  }
+
+  function crossProd(v1, v2) {
+    return { x: v1.y*v2.z - v2.y*v1.z,
+             y: v1.z*v2.x - v2.z*v1.x,
+             z: v1.x*v2.y - v2.x*v1.y };
+  }
+
+  function normalize(v) {
+    l = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    return { x: v.x/l, y: v.y/l, z: v.z/l };
+  }
+
+  function vectAdd(v1, v2) {
+    return { x: v1.x + v2.x, y: v1.y + v2.y, z: v1.z + v2.z };
+  }
+
+  function vectSub(v1, v2) {
+    return { x: v1.x - v2.x, y: v1.y - v2.y, z: v1.z - v2.z };
+  }
+
+  function vectMul(v, l) {
+    return { x: v.x*l, y: v.y*l, z: v.z*l };
+  }
+
+  function pushVec(v, arr) {
+    arr.push(v.x, v.y, v.z);
+  }
+
+  t = 0;
+  function drawScene()
+  {
+  /*
+    x1 = Math.sin(t * 1.1) * 1.5;
+    y1 = Math.cos(t * 1.3) * 1.5;
+    z1 = Math.sin(t + Math.PI/3) * 1.5;
+    x2 = Math.cos(t * 1.2) * 1.5;
+    y2 = Math.sin(t * 1.4) * 1.5;
+    z2 = Math.sin(t*1.25 - Math.PI/3) * 1.5;
+    x3 = Math.cos(t * 1.15) * 1.5;
+    y3 = Math.sin(t * 1.37) * 1.5;
+    z3 = Math.sin(t*1.27) * 1.5;
+	*/
+	x1 = Math.sin(0.0) * 1.5;
+    y1 = Math.cos(0.0) * 1.5;
+    z1 = Math.sin(Math.PI/3) * 1.5;
+    x2 = Math.cos(0.0) * 1.5;
+    y2 = Math.sin(0.0) * 1.5;
+    z2 = Math.sin(- Math.PI/3) * 1.5;
+    x3 = Math.cos(0.0) * 1.5;
+    y3 = Math.sin(0.0) * 1.5;
+    z3 = Math.sin(0.0) * 1.5;
+	
+	//Define the points for the triangle
+	x4 = Math.sin(t * 1.5) * 1.5;
+	y4 = Math.cos(t * 1.7) * 1.5;
+	z4 = Math.sin(t*1.5 - Math.PI/3) * 1.5;
+	
+	x5 = Math.sin(t * 1.7) * 1.5;
+	y5 = Math.cos(t * 1.9) * 1.5;
+	z5 = Math.sin(t*1.75 - Math.PI/3) * 1.5;
+	
+	x6 = Math.sin(t * 1.9) * 1.5;
+	y6 = Math.cos(t * 2.1) * 1.5;
+	z6 = Math.sin(t*2.00 - Math.PI/3) * 1.5;
+
+    cameraFrom = { x: Math.sin(t * 0.4) * 18,
+                   y: Math.sin(t * 0.13) * 5 + 5,
+                   z: Math.cos(t * 0.4) * 18 };
+    cameraTo = { x:0, y:0, z:0 };
+    cameraPersp = 6;
+    up = { x: 0, y: 1, z: 0 };
+    cameraDir = normalize(vectSub(cameraTo, cameraFrom));
+
+    cameraLeft = normalize(crossProd(cameraDir, up));
+    cameraUp = normalize(crossProd(cameraLeft, cameraDir));
+    // cameraFrom + cameraDir * cameraPersp
+    cameraCenter = vectAdd(cameraFrom, vectMul(cameraDir, cameraPersp));
+    // cameraCenter + cameraUp + cameraLeft * ratio
+    cameraTopLeft  = vectAdd(vectAdd(cameraCenter, cameraUp),
+                             vectMul(cameraLeft, ratio));
+    cameraBotLeft  = vectAdd(vectSub(cameraCenter, cameraUp),
+                             vectMul(cameraLeft, ratio));
+    cameraTopRight = vectSub(vectAdd(cameraCenter, cameraUp),
+                             vectMul(cameraLeft, ratio));
+    cameraBotRight = vectSub(vectSub(cameraCenter, cameraUp),
+                             vectMul(cameraLeft, ratio));
+
+
+    //corners = [1.2, 1, -12, -1.2, 1, -12, 1.2, -1, -12, -1.2, -1, -12];
+    corners = [];
+    pushVec(cameraTopRight, corners);
+    pushVec(cameraTopLeft, corners);
+    pushVec(cameraBotRight, corners);
+    pushVec(cameraBotLeft, corners);
+
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(corners), gl.STATIC_DRAW);
+
+    gl.uniform3f(cameraPos, cameraFrom.x, cameraFrom.y, cameraFrom.z);
+    gl.uniform3f(sphere1Center, x1, y1, z1);
+    gl.uniform3f(sphere2Center, x2, y2, z2);
+    gl.uniform3f(sphere3Center, x3, y3, z3);
+	
+	//Setup the triangle
+	gl.uniform3f(triangleVertex1, x4, y4, z4);
+	gl.uniform3f(triangleVertex2, x5, y5, z5);
+	gl.uniform3f(triangleVertex3, x6, y6, z6);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+	
+    t += 0.03;
+    if (t > Math.PI * 200) {
+      t -= Math.PI * 200;
+    }
+	
+  }
+
+  var timer = 0;
+
+  var canvas;
+  function webGLStart()
+  {
+    canvas = document.getElementById("canvas");
+    initGL(canvas);
+    initShaders()
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+    gl.clearDepth(1.0);
+
+    initBuffers();
+  }
+
+  function flipAnim()
+  {
+    if (timer) {
+      clearInterval(timer);
+      timer = 0;
+    }
+    else {
+      timer = setInterval(drawScene, 15);
+    }
+  }
+
+  var ratio;
+  function resizeCanvas(w)
+  {
+    if (w == -1) {
+      document.getElementById('contrib').style.display = "none";
+      canvas.style.display = "none";
+      canvas.parentNode.style.position = "absolute";
+      canvas.parentNode.style.top = 0;
+      w = canvas.parentNode.parentNode.offsetWidth;
+      ratio = w / canvas.parentNode.parentNode.offsetHeight;
+      canvas.style.display = "";
+    }
+    else {
+      document.getElementById('contrib').style.display = "";
+      ratio = 1.6;
+      canvas.parentNode.style.position = "";
+      canvas.parentNode.style.top = "";
+      window.onresize = null;
+    }
+    canvas.width = w;
+    canvas.height = w / ratio;
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    t -= 0.03;
+    drawScene();
+  }
+
+  var resizeTimer = false;
+  function fullScreen() {
+    window.onresize = function() {
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
+      resizeTimer = setTimeout(function() {
+        fullScreen();
+      }, 100);
+    };
+    
+    resizeCanvas(-1);
+  }
+
+</script>
+</head>
+
+
+<body onload="webGLStart(); resizeCanvas(600); flipAnim()" style="height: 100%; margin: 0">
+  <div style="height:100%; margin: 0;">
+    <div style="text-align:center; padding: 1em;">
+      <input type=button onclick="resizeCanvas(400)" value=small>
+      <input type=button onclick="resizeCanvas(600)" value=medium>
+      <input type=button onclick="resizeCanvas(800)" value=large>
+      <input type=button onclick="fullScreen();" value="very large">
+      &nbsp;&nbsp;&nbsp;&nbsp;
+      <input type=button onclick="flipAnim()" value=pause>
+    </div>
+    <div style="z-index:-1; text-align:center; width:100%;">
+      <canvas id="canvas" style="border: none;" width="425" height="330"></canvas>
+    </div>
+  </div>
+  <div style="margin: -8em 1em 0;" id="contrib">
+    <p>
+      Credits: Abdullah Alfarrarjeh, Laura Rodriguez, Ami Lathia, Anisha Agarwal
+    </p>
+  </div>
+</body>
+
+</html>
