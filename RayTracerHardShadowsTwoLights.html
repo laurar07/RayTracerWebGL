@@ -8,7 +8,7 @@
   precision mediump float;
 
   const vec3 lightDir = vec3(0.577350269, 0.577350269, -0.577350269);
-  const vec3 lightDir2 = vec3(-0.577350269, -0.577350269, 0.577350269);
+  const vec3 lightDir2 = vec3(-0.577350269, 0.577350269, 0.577350269);
   varying vec3 vPosition;
   uniform vec3 cameraPos;
   uniform vec3 sphere1Center;
@@ -191,7 +191,31 @@
   
   }
 
-  float lightAt(vec3 N, vec3 V, vec3 L, float I, vec3 color) {
+  vec3 lightAt(vec3 N, vec3 V, vec3 L, float I, vec3 color) {
+    vec3 R = normalize(reflect(-L, N));
+
+	float spec = dot(R, V);
+	if(spec > 1.0)
+		spec = 1.0;
+	if(spec < 0.0)
+		spec = 0.0;
+		
+	float diff = dot(L, N);
+	if(diff > 1.0)
+		diff = 1.0;
+	if(diff < 0.0)
+		diff = 0.0;
+	
+    float c = 0.3 + I * 0.4 * pow(max(spec, 0.0), 30.0) + I * 0.7 * max(diff, 0.0);
+	
+    if (c > 1.0) {
+      return mix(color, vec3(1.6, 1.6, 1.6), c - 1.0);
+    }
+
+    return c * color;
+  }
+  
+  vec3 twoLightAt(vec3 N, vec3 V, vec3 L, float I, vec3 L2, float I2, vec3 color) {
     
 	//First light
 	vec3 R = normalize(reflect(-L, N));
@@ -199,19 +223,46 @@
 	float spec = dot(R, V);
 	if(spec > 1.0)
 		spec = 1.0;
+	if(spec < 0.0)
+		spec = 0.0;
 		
 	float diff = dot(L, N);
 	if(diff > 1.0)
 		diff = 1.0;
+	if(diff < 0.0)
+		diff = 0.0;
 	
-    float c = I * 0.4 * pow(max(dot(R, V), 0.0), 30.0) + I * 0.7 * max(dot(L, N), 0.0);
+    float c = I * 0.4 * pow(max(spec, 0.0), 30.0) + I * 0.7 * max(diff, 0.0);
 	
-	return c;
+	//Second light
+	vec3 R2 = normalize(reflect(-L2, N));
+
+	spec = dot(R2, V);
+	if(spec > 1.0)
+		spec = 1.0;
+	if(spec < 0.0)
+		spec = 0.0;
+		
+	diff = dot(L2, N);
+	if(diff > 1.0)
+		diff = 1.0;
+	if(diff < 0.0)
+		diff = 0.0;
 	
+    c += I2 * 0.4 * pow(max(spec, 0.0), 30.0) + I2 * 0.7 * max(diff, 0.0);
+	
+	//Add the ambient light
+	c += 0.3;
+	
+    if (c > 1.0) {
+      return mix(color, vec3(1.6, 1.6, 1.6), c - 1.0);
+    }
+
+    return c * color;
   }
   
-  bool intersectWorld(vec3 lStart, vec3 lDir, out vec3 pos,
-                      out vec3 normal, out vec3 color) {
+  bool intersectWorld(vec3 lStart, vec3 lDir, /*vec4 excludeObject, int excludeFloor,*/ out vec3 pos,
+                      out vec3 normal, out vec3 color/*, out vec4 objectHit, out int floorHit*/) {
     float d1, d2, d3, d4;
     bool h1, h2, h3, h4;
 	vec3 triangle_norm;	
@@ -222,33 +273,36 @@
     h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
 	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
-    if (h1 && d1 < d2 && d1 < d3 && d1 < d4) {
+    if (h1 && d1 < d2 && d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
 		color = vec3(0.0, 0.0, 0.9);
+		//objectHit.x = 1.0;
     }
-    else if (h2 && d2 < d3 && d2 < d4) {
+    else if (h2 && d2 < d3 && d2 < d4 /*&& excludeObject.y != 1.0*/) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
 		color = vec3(0.9, 0.0, 0.0);
 		//objectHit.y = 1.0;
     }
-    else if (h3 && d3 < d4) {
+    else if (h3 && d3 < d4 /*&& excludeObject.z != 1.0*/) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
 		color = vec3(0.0, 0.9, 0.0);
+		//objectHit.z = 1.0;
     }
-	else if(h4) {
+	else if(h4 /*&& excludeObject.w != 1.0*/) {
 		//Triangle intersected
 		pos = lStart + d4 * lDir;
 		//normal = pos - sphere3Center;
 		normal = triangle_norm;
 		color = vec3(0.0, 1.0, 0.0);
+		//objectHit.w = 1.0;
 	}
-    else if (lDir.y < -0.01) {
+    else if (lDir.y < -0.01 /*&& excludeFloor != 1*/) {
 		//No sphere intersections
 		//This checks intersections with the floor
 		pos = lStart + ((lStart.y + 2.7) / -lDir.y) * lDir;
@@ -262,6 +316,7 @@
 		else {
 			color = vec3(0.0, 0.0, 1.0);
 		}
+		//floorHit = 1;
 	}
     else {
 		//No intersections with spheres or floor -- return false
@@ -275,47 +330,49 @@
   {
     vec3 cameraDir = normalize(vPosition - cameraPos);
 
-    vec3 p1, norm, p2;
-    vec3 col, colT, colM, col3;
+    vec3 p1, norm, norm1, p2;
+    vec3 col, col2, colT, colT1, colM, col3;
 	vec4 objectToExclude;
 	vec4 initialObjects; initialObjects.x = 0.0; initialObjects.y = 0.0; initialObjects.z = 0.0; initialObjects.w = 0.0;
 	int excludeFloor;
 	//Shoot the first ray from the camera location -- get position, normal and color
     if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
 	
-	//Do the following for each of the lights, then take the average
-	  float lightIntensity1 = 0.5;
-	  float lightIntensity2 = 0.5;
+	  float lightIntensity = 1.0;
 	  
       float offset = 1.0;
 	  p1.x += offset;
 	  p1.y += offset;
 	  p1.z += offset;
 	  
-	  float col1, col2, colTotal;
+	  colT1 = colT;		//Save the value of colT to use with the light calculation
+	  norm1 = norm;
 	  
-	  //First light
-	  col1 = lightAt(norm, -cameraDir, lightDir, lightIntensity1, colT);
+	  bool notReachLight1 = intersectWorld(p1, lightDir, p2, norm, colT);
+	  bool notReachLight2 = intersectWorld(p1, lightDir2, p2, norm, colT);
 	  
-	  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
-		col1 = 0.0;
+	  if (notReachLight1 && notReachLight2) {
+		col.x = 0.0; col.y = 0.0; col.z = 0.0;
+	  } else if(notReachLight1) {
+		col = lightAt(norm1, -cameraDir, lightDir2, lightIntensity, colT1);
+	  } else if(notReachLight2) {
+		col = lightAt(norm1, -cameraDir, lightDir, lightIntensity, colT1);
+      } else {
+		//Need to compute for both lights
+		col = twoLightAt(norm1, -cameraDir, lightDir, lightIntensity, lightDir2, lightIntensity, colT1);
+	  }
+	  /*
+	  col2 = lightAt(norm, -cameraDir, lightDir2, lightIntensity, colT1);
+	  
+	  if (intersectWorld(p1, lightDir2, p2, norm, colT1)) {
+		col2.x = 0.0; col2.y = 0.0; col2.z = 0.0;
       }
 	  
-	  //Second light
-	  col2 = lightAt(norm, -cameraDir, lightDir2, lightIntensity2, colT);
-	  
-	  if (intersectWorld(p1, lightDir2, p2, norm, colT)) {
-		col2 = 0.0;
-      } 
-	  
-	  //Compute the final color
-	  colTotal = col1 + col2 + 0.3;
-	  if (colTotal > 1.0) {
-			col = mix(colT, vec3(1.6, 1.6, 1.6), colTotal - 1.0);
-	  } else {
-			col = colTotal * colT;
-	  }
-	  
+	  //Add the contribution of the second light
+	  col.x += col2.x;
+	  col.y += col2.y;
+	  col.z += col2.z;
+	  */
       gl_FragColor = vec4(col, 1.0);
     }
     else {
