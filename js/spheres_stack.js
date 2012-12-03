@@ -1043,10 +1043,10 @@ function makeSphereAndCube() {
 
 function makeSphereColumn() {
   var objects = [];
-  objects.push(new Sphere(Vector.create([0, 0.75, 0]), 0.25, nextObjectId++));
-  objects.push(new Sphere(Vector.create([0, 0.25, 0]), 0.25, nextObjectId++));
-  objects.push(new Sphere(Vector.create([0, -0.25, 0]), 0.25, nextObjectId++));
-  objects.push(new Sphere(Vector.create([0, -0.75, 0]), 0.25, nextObjectId++));
+  //objects.push(new Sphere(Vector.create([0, 0.75, 0]), 0.25, nextObjectId++));
+  objects.push(new Sphere(Vector.create([0, 0.35, 0]), 0.35, nextObjectId++));
+  objects.push(new Sphere(Vector.create([0, -0.35, 0]), 0.35, nextObjectId++));
+  //objects.push(new Sphere(Vector.create([0, -0.75, 0]), 0.25, nextObjectId++));
   return objects;
 }
 

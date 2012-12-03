@@ -620,6 +620,30 @@ Light.prototype.intersect = function(origin, ray) {
 // class PathTracer
 ////////////////////////////////////////////////////////////////////////////////
 
+function createTexture(url) {
+	var image = new Image();
+	var texture = gl.createTexture();
+	texture.image = image;
+	image.onload = function() { handleLoadedTexture(texture); }
+	image.src = url;
+	return texture;
+  }
+ function handleLoadedTexture(texture) 
+{
+	alert('test');
+	//gl.bindTexture(gl.TEXTURE_2D, texture);
+	//gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+	//gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	//gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	//gl.generateMipmap(gl.TEXTURE_2D);
+
+	gl.bindTexture(gl.TEXTURE_2D, textures);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 512, 512, 0, gl.RGB, type, null);
+	
+	gl.bindTexture(gl.TEXTURE_2D, null);
+}
 function PathTracer() {
   var vertices = [
     -1, -1,
@@ -640,7 +664,9 @@ function PathTracer() {
   var type = gl.getExtension('OES_texture_float') ? gl.FLOAT : gl.UNSIGNED_BYTE;
   this.textures = [];
   for(var i = 0; i < 2; i++) {
-      this.textures.push(gl.createTexture());
+    this.textures.push(gl.createTexture());
+	//this.textures.push(createTexture('"earth1024.jpg"'));
+	//alert('test');
     gl.bindTexture(gl.TEXTURE_2D, this.textures[i]);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -977,7 +1003,9 @@ function tick(timeSinceStart) {
 
 function makeStacks() {
   var objects = [];
-
+	
+  objects.push(new Sphere(Vector.create([0, -0.05, 0]), 0.15, nextObjectId++));
+  
   // lower level
   objects.push(new Cube(Vector.create([-0.5, -0.75, -0.5]), Vector.create([0.5, -0.7, 0.5]), nextObjectId++));
 
