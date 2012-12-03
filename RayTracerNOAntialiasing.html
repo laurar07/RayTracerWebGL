@@ -12,10 +12,6 @@
   uniform vec3 cameraPos;
   uniform vec3 sphere1Center;
   uniform vec3 sphere2Center;
-  //uniform vec3 sphere3Center;
-  //uniform vec3 triangleVertex1;
-  //uniform vec3 triangleVertex2;
-  //uniform vec3 triangleVertex3;
 
   bool intersectSphere(vec3 center, vec3 lStart, vec3 lDir,
                        out float dist) {
@@ -282,52 +278,28 @@
 
     vec3 p1, norm, p2;
     vec3 col, colT, colM, col3, colAvg;
-	
-	//Adding antialiasing (manually)
-	//In this case, instead of just shooting 1 ray from the eye vector, we shoot 9 rays and for each one compute all the calculations
-	//After we get all 9 results, we average them to create the smooth surface
-	
-	for(float i = -1.0; i < 2.0; i++) {
-		for(float j = -1.0; j < 2.0; j++) {
-		
-			//Calculate offset
-			cameraDir.x = cameraDir.x + (i * 0.0001);
-			cameraDir.y = cameraDir.y + (j * 0.0001);
 			
-			//Shoot the ray from the camera location -- get position, normal and color
-			if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
-			
-			//Do the following for each of the lights, then take the average
-			  float lightIntensity = 1.0;
-			  
-			  col = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
-			  
-			  float offset = 1.0;
-			  p1.x += offset;
-			  p1.y += offset;
-			  p1.z += offset;
-			  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
-				col.x = 0.0; col.y = 0.0; col.z = 0.0;
-			  }
-			  
-			  colAvg.x += col.x; 
-			  colAvg.y += col.y;
-			  colAvg.z += col.z;
-			  //gl_FragColor = vec4(col, 1.0);
-			}
-			else {
-			  //gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-			}
-		}
+	//Shoot the ray from the camera location -- get position, normal and color
+	if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
+	
+	//Do the following for each of the lights, then take the average
+	  float lightIntensity = 1.0;
+	  
+	  col = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
+	  
+	  float offset = 1.0;
+	  p1.x += offset;
+	  p1.y += offset;
+	  p1.z += offset;
+	  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
+		col.x = 0.0; col.y = 0.0; col.z = 0.0;
+	  }
+	  
+	  gl_FragColor = vec4(col, 1.0);
 	}
-	
-	//Average the results and compute the fragment color accordingly
-	colAvg.x = colAvg.x / 9.0;
-	colAvg.y = colAvg.y / 9.0;
-	colAvg.z = colAvg.z / 9.0;
-	
-	//Shade the pixel
-	gl_FragColor = vec4(colAvg, 1.0);
+	else {
+	  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+	}
   }
 </script>
 
