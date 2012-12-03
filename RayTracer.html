@@ -14,7 +14,7 @@
   uniform vec3 cameraPos;
   uniform vec3 sphere1Center;
   uniform vec3 sphere2Center;
-  uniform vec3 sphere3Center;
+  //uniform vec3 sphere3Center;
   uniform vec3 triangleVertex1;
   uniform vec3 triangleVertex2;
   uniform vec3 triangleVertex3;
@@ -216,40 +216,40 @@
 
   bool intersectWorld(vec3 lStart, vec3 lDir, out vec3 pos,
                       out vec3 normal, out vec3 color) {
-    float d1, d2, d3, d4;
-    bool h1, h2, h3, h4;
+    float d1, d2, d4;
+    bool h1, h2, h4;
 	vec3 triangle_norm;	
 	//Calculate the intersections with 3 spheres
 	//d1, d2, d3 represent the distances
     h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
     h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
-    h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
+    //h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
 	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
-    if (h1 && d1 < d2 && d1 < d3 && d1 < d4) {
+    if (h1 && d1 < d2 && /*d1 < d3 &&*/ d1 < d4) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
-		color = vec3(0.0, 0.0, 0.9);
+		color = vec3(0.0, 0.9, 0.9);
     }
-    else if (h2 && d2 < d3 && d2 < d4) {
+    else if (h2 && /*d2 < d3 &&*/ d2 < d4) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
-		color = vec3(0.9, 0.0, 0.0);
+		color = vec3(0.777, 0.082, 0.519);
     }
+	/*
     else if (h3 && d3 < d4) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
 		color = vec3(0.0, 0.9, 0.0);
-    }
+    }*/
 	else if(h4) {
 		//Triangle intersected
 		pos = lStart + d4 * lDir;
-		//normal = pos - sphere3Center;
 		normal = triangle_norm;
-		color = vec3(0.0, 1.0, 0.0);
+		color = vec3(0.0, 0.3906, 0.0);
 	}
     else if (lDir.y < -0.01) {
 		//No sphere intersections
@@ -393,7 +393,7 @@
 	//Set up the spheres
 	sphere1Center = gl.getUniformLocation(shaderProgram, "sphere1Center");
     sphere2Center = gl.getUniformLocation(shaderProgram, "sphere2Center");
-    sphere3Center = gl.getUniformLocation(shaderProgram, "sphere3Center");
+    //sphere3Center = gl.getUniformLocation(shaderProgram, "sphere3Center");
 	
 	//Set up the triangle
 	triangleVertex1 = gl.getUniformLocation(shaderProgram, "triangleVertex1");
@@ -521,7 +521,7 @@
     gl.uniform3f(cameraPos, cameraFrom.x, cameraFrom.y, cameraFrom.z);
     gl.uniform3f(sphere1Center, x1, y1, z1);
     gl.uniform3f(sphere2Center, x2, y2, z2);
-    gl.uniform3f(sphere3Center, x3, y3, z3);
+    //gl.uniform3f(sphere3Center, x3, y3, z3);
 	
 	//Setup the triangle
 	gl.uniform3f(triangleVertex1, x4, y4, z4);
