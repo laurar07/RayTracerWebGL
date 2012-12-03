@@ -616,22 +616,19 @@
 </head>
 
 
-<body onload="webGLStart(); resizeCanvas(600); flipAnim()" style="height: 100%; margin: 0">
+<body onload="webGLStart(); resizeCanvas(800); flipAnim()" style="height: 100%; margin: 0">
   <div style="height:100%; margin: 0;">
     <div style="text-align:center; padding: 1em;">
-      <input type=button onclick="resizeCanvas(400)" value=small>
-      <input type=button onclick="resizeCanvas(600)" value=medium>
-      <input type=button onclick="resizeCanvas(800)" value=large>
-      <input type=button onclick="fullScreen();" value="very large">
-      &nbsp;&nbsp;&nbsp;&nbsp;
-      <input type=button onclick="flipAnim()" value=pause>
+      <p style="font-family:'Times New Roman', Times, serif;font-size:30px;color:blue;font-weight:bold">
+		Ray Tracing with WebGL
+	  </p>
     </div>
     <div style="z-index:-1; text-align:center; width:100%;">
       <canvas id="canvas" style="border: none;" width="425" height="330"></canvas>
     </div>
   </div>
-  <div style="margin: -8em 1em 0;" id="contrib">
-    <p>
+  <div style="margin: -4em 1em 0;" id="contrib">
+    <p style="text-align:center;font-weight:bold">
       Credits: Abdullah Alfarrarjeh, Laura Rodriguez, Ami Lathia, Anisha Agarwal
     </p>
   </div>
