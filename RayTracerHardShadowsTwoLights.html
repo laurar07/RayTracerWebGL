@@ -382,7 +382,7 @@
 		col = lightAt(norm1, -cameraDir, lightDir2, lightIntensity, colT1);
 	  } else if(notReachLight2) {
 		col = lightAt(norm1, -cameraDir, lightDir, lightIntensity, colT1);
-      } else {
+	  } else {
 		//Need to compute for both lights
 		col = twoLightAt(norm1, -cameraDir, lightDir, lightIntensity, lightDir2, lightIntensity, colT1);
 	  }
@@ -566,12 +566,12 @@
     y3 = Math.sin(t * 1.37) * 1.5;
     z3 = Math.sin(t*1.27) * 1.5;
 	*/
-	x1 = Math.sin(0.0) * 1.5;
-    y1 = Math.cos(0.0) * 1.5;
-    z1 = Math.sin(Math.PI/3) * 1.5;
-    x2 = Math.cos(0.0) * 1.5;
-    y2 = Math.sin(0.0) * 1.5;
-    z2 = Math.sin(- Math.PI/3) * 1.5;
+	x1 = Math.sin(0.0) * 2.0;
+    y1 = Math.cos(0.0) * 2.0;
+    z1 = Math.sin(Math.PI/3) * 2.0;
+    x2 = Math.cos(0.0) * 2.5;
+    y2 = Math.sin(0.0) * 2.5;
+    z2 = Math.sin(- Math.PI/3) * 2.5;
     x3 = Math.cos(0.0) * 1.5;
     y3 = Math.sin(0.0) * 1.5;
     z3 = Math.sin(0.0) * 1.5;
