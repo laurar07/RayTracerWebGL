@@ -7,7 +7,7 @@
 <script id="shader-fs" type="x-shader/x-fragment">
   precision mediump float;
 
-  const vec3 lightDir = vec3(0.577350269, 0.577350269, -0.577350269);
+  const vec3 lightDir = vec3(0.577350269, 0.597350269, -0.577350269);
   varying vec3 vPosition;
   uniform vec3 cameraPos;
   uniform vec3 sphere1Center;
@@ -21,23 +21,35 @@
                        out float dist) {
 					   
 	//Spheres have been designed with radius of 1.0
-    vec3 c = center - lStart;
-    float b = dot(lDir, c);
-	float d = b*b - dot(c, c) + 1.0; //First, calculate the determinant
-    if (d < 0.0) {
+    //at2 + bt + c = 0
+	float a = 1.0;
+	float b = 2.0 * (lDir.x * (lStart.x - center.x) + (lDir.y * (lStart.y - center.y)) + (lDir.z * (lStart.z - center.z)));
+	float c = (lStart.x - center.x) * (lStart.x - center.x) + (lStart.y - center.y) * (lStart.y - center.y) + (lStart.z - center.z) * (lStart.z - center.z) - 1.0;
+	
+	float determinant = b * b - 4.0 * a * c;
+	if(determinant < 0.0) {
 		//If the determinant is zero, no intersection
 		dist = 10000.0; //Place the distance at a really high value
 		return false;
-    }
-
-	//Calculate the root of the equation
-    dist = b - sqrt(d);
+	}
 	
-    if (dist < 0.0) {
-	  //If the root is negative, no intersection
-      dist = 10000.0; //Place the distance at a really high value 
-      return false;
-    }
+	float t1 = (-1.0 * b + sqrt(determinant)) / 2.0;
+	float t2 = (-1.0 * b - sqrt(determinant)) / 2.0;
+	
+	if((t1 <= 0.1 && t2 <= 0.1))
+	{
+		dist = 10000.0; //Place the distance at a really high value
+		return false;
+	} else if (t1 <= 0.1) {
+		//Take t2
+		dist = t2;
+	} else if (t2 <= 0.1) {
+		//Take t1
+		dist = t1;
+	} else {
+		//Take the min
+		dist = min(t1, t2);
+	}
 
 	//If we are here, we found an intersection
     return true;
@@ -192,21 +204,17 @@
 
   vec3 lightAt(vec3 N, vec3 V, vec3 L, float I, vec3 color) {
     vec3 R = normalize(reflect(-L, N));
-
+	
 	float spec = dot(R, V);
 	if(spec > 1.0)
 		spec = 1.0;
 		
-	float diff = dot(L, N);
-	if(diff > 1.0)
-		diff = 1.0;
-	
-    float c = 0.3 + I * 0.4 * pow(max(dot(R, V), 0.0), 30.0);
+    float c = 0.3 + I * 0.4 * pow(max(spec, 0.0), 30.0);
 	
     if (c > 1.0) {
       return mix(color, vec3(1.6, 1.6, 1.6), c - 1.0);
     }
-
+	
     return c * color;
   }
   
@@ -219,37 +227,34 @@
 	//d1, d2, d3 represent the distances
     h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
     h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
-    h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
+    //h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
 	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
-    if (h1 && d1 < d2 && d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
+    if (h1 && d1 < d2 && /*d1 < d3 &&*/ d1 < d4) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
-		color = vec3(0.0, 0.0, 0.9);
-		//objectHit.x = 1.0;
+		color = vec3(0.0, 0.0, 0.5);
     }
-    else if (h2 && d2 < d3 && d2 < d4 /*&& excludeObject.y != 1.0*/) {
+    else if (h2 && /*d2 < d3 &&*/ d2 < d4) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
-		color = vec3(0.9, 0.0, 0.0);
-		//objectHit.y = 1.0;
+		color = vec3(0.795, 0.1328, 0.1328);
     }
-    else if (h3 && d3 < d4 /*&& excludeObject.z != 1.0*/) {
+	/*
+    else if (h3 && d3 < d4) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
 		color = vec3(0.0, 0.9, 0.0);
-		//objectHit.z = 1.0;
     }
-	else if(h4 /*&& excludeObject.w != 1.0*/) {
+	*/
+	else if(h4) {
 		//Triangle intersected
 		pos = lStart + d4 * lDir;
-		//normal = pos - sphere3Center;
 		normal = triangle_norm;
-		color = vec3(0.0, 1.0, 0.0);
-		//objectHit.w = 1.0;
+		color = vec3(0.0, 0.39, 0.0);
 	}
     else if (lDir.y < -0.01 /*&& excludeFloor != 1*/) {
 		//No sphere intersections
@@ -265,7 +270,6 @@
 		else {
 			color = vec3(0.0, 0.0, 1.0);
 		}
-		//floorHit = 1;
 	}
     else {
 		//No intersections with spheres or floor -- return false
@@ -279,31 +283,30 @@
   {
     vec3 cameraDir = normalize(vPosition - cameraPos);
 
-    vec3 p1, norm, p2;
-    vec3 col, colT, colM, col3;
-	vec4 objectToExclude;
-	vec4 initialObjects; initialObjects.x = 0.0; initialObjects.y = 0.0; initialObjects.z = 0.0; initialObjects.w = 0.0;
-	int excludeFloor;
+    vec3 p1, norm, norm1, p2;
+    vec3 col, colT, colT1, colM, col3;
+
 	//Shoot the first ray from the camera location -- get position, normal and color
     if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
 	
-	//Do the following for each of the lights, then take the average
 	  float lightIntensity = 1.0;
+	  colT1 = colT;
+	  norm1 = norm;
 	  
-	  col = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
-	  
-      float offset = 1.0;
-	  p1.x += offset;
-	  p1.y += offset;
-	  p1.z += offset;
-	  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
-		col.x = 0.0; col.y = 0.0; col.z = 0.0;
-      }
+      //float offset = 1.1;
+	  //p1.x += offset;
+	  //p1.y += offset;
+	  //p1.z += offset;
+	  if (intersectWorld(p1, lightDir, p2, norm, colT) /*&& (((p1.x - p2.x) > offset)  || ((p2.x - p1.x) > offset) || ((p1.y - p2.y) > offset) || ((p2.y - p1.y) > offset) || ((p1.z - p2.z) > offset) || ((p2.z - p1.z) > offset))*/) {
+		col.x = 0.3 * colT1.x; col.y = 0.3 * colT1.y; col.z = 0.3 * colT1.z;
+      } else {
+		col = lightAt(norm1, -cameraDir, lightDir, lightIntensity, colT1);
+	  }
 	  
       gl_FragColor = vec4(col, 1.0);
     }
     else {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+      gl_FragColor = vec4(0.3, 0.3, 0.3, 1.0);
     }
   }
 </script>
@@ -468,12 +471,12 @@
     y3 = Math.sin(t * 1.37) * 1.5;
     z3 = Math.sin(t*1.27) * 1.5;
 	*/
-	x1 = Math.sin(0.0) * 1.5;
-    y1 = Math.cos(0.0) * 1.5;
-    z1 = Math.sin(Math.PI/3) * 1.5;
-    x2 = Math.cos(0.0) * 1.5;
-    y2 = Math.sin(0.0) * 1.5;
-    z2 = Math.sin(- Math.PI/3) * 1.5;
+	x1 = Math.sin(0.0) * 2.0;
+    y1 = Math.cos(0.0) * 2.0;
+    z1 = Math.sin(Math.PI/3) * 1.0;
+    x2 = Math.cos(0.0) * 2.5;
+    y2 = Math.sin(0.0) * 2.5;
+    z2 = Math.sin(- Math.PI/3) * 2.5;
     x3 = Math.cos(0.0) * 1.5;
     y3 = Math.sin(0.0) * 1.5;
     z3 = Math.sin(0.0) * 1.5;
@@ -481,15 +484,15 @@
 	//Define the points for the triangle
 	x4 = Math.sin(t * 1.5) * 1.5;
 	y4 = Math.cos(t * 1.7) * 1.5;
-	z4 = Math.sin(t*1.5 - Math.PI/3) * 1.5;
+	z4 = Math.sin(t * 1.5 - Math.PI/3) * 1.5;
 	
 	x5 = Math.sin(t * 1.7) * 1.5;
 	y5 = Math.cos(t * 1.9) * 1.5;
-	z5 = Math.sin(t*1.75 - Math.PI/3) * 1.5;
-	
+	z5 = Math.sin(t * 1.7 - Math.PI/3) * 1.5;
+
 	x6 = Math.sin(t * 1.9) * 1.5;
 	y6 = Math.cos(t * 2.1) * 1.5;
-	z6 = Math.sin(t*2.00 - Math.PI/3) * 1.5;
+	z6 = Math.sin(t * 1.9 - Math.PI/3) * 1.5;
 
     cameraFrom = { x: Math.sin(t * 0.4) * 18,
                    y: Math.sin(t * 0.13) * 5 + 5,
@@ -621,7 +624,7 @@
     <div style="text-align:center; padding: 1em;">
       <p style="font-family:'Times New Roman', Times, serif;font-size:30px;color:blue;font-weight:bold">
 		Ray Tracing with WebGL
-	  </p>
+		</p>
     </div>
     <div style="z-index:-1; text-align:center; width:100%;">
       <canvas id="canvas" style="border: none;" width="425" height="330"></canvas>
