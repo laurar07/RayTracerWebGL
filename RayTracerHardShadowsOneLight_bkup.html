@@ -7,15 +7,15 @@
 <script id="shader-fs" type="x-shader/x-fragment">
   precision mediump float;
 
-  const vec3 lightDir = vec3(0.577350269, 0.657350269, -0.577350269);
+  const vec3 lightDir = vec3(0.577350269, 0.577350269, -0.577350269);
   varying vec3 vPosition;
   uniform vec3 cameraPos;
   uniform vec3 sphere1Center;
   uniform vec3 sphere2Center;
-  //uniform vec3 sphere3Center;
-  //uniform vec3 triangleVertex1;
-  //uniform vec3 triangleVertex2;
-  //uniform vec3 triangleVertex3;
+  uniform vec3 sphere3Center;
+  uniform vec3 triangleVertex1;
+  uniform vec3 triangleVertex2;
+  uniform vec3 triangleVertex3;
 
   bool intersectSphere(vec3 center, vec3 lStart, vec3 lDir,
                        out float dist) {
@@ -212,46 +212,45 @@
   
   bool intersectWorld(vec3 lStart, vec3 lDir, /*vec4 excludeObject, int excludeFloor,*/ out vec3 pos,
                       out vec3 normal, out vec3 color/*, out vec4 objectHit, out int floorHit*/) {
-    float d1, d2;
-    bool h1, h2;
+    float d1, d2, d3, d4;
+    bool h1, h2, h3, h4;
 	vec3 triangle_norm;	
 	//Calculate the intersections with 3 spheres
 	//d1, d2, d3 represent the distances
     h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
     h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
-    //h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
-	//h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
+    h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
+	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
-    if (h1 && d1 < d2 /*&& d1 < d3 && d1 < d4 && excludeObject.x != 1.0*/) {
+    if (h1 && d1 < d2 && d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
 		color = vec3(0.0, 0.0, 0.9);
 		//objectHit.x = 1.0;
     }
-    else if (h2 /*&& d2 < d3 && d2 < d4 && excludeObject.y != 1.0*/) {
+    else if (h2 && d2 < d3 && d2 < d4 /*&& excludeObject.y != 1.0*/) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
 		color = vec3(0.9, 0.0, 0.0);
 		//objectHit.y = 1.0;
     }
-	/*
-    else if (h3 && d3 < d4) {
+    else if (h3 && d3 < d4 /*&& excludeObject.z != 1.0*/) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
 		color = vec3(0.0, 0.9, 0.0);
 		//objectHit.z = 1.0;
     }
-	
-	else if(h4) {
+	else if(h4 /*&& excludeObject.w != 1.0*/) {
 		//Triangle intersected
 		pos = lStart + d4 * lDir;
+		//normal = pos - sphere3Center;
 		normal = triangle_norm;
 		color = vec3(0.0, 1.0, 0.0);
 		//objectHit.w = 1.0;
-	}*/
+	}
     else if (lDir.y < -0.01 /*&& excludeFloor != 1*/) {
 		//No sphere intersections
 		//This checks intersections with the floor
@@ -281,57 +280,31 @@
     vec3 cameraDir = normalize(vPosition - cameraPos);
 
     vec3 p1, norm, p2;
-    vec3 col, colT, colT1, colM, col3, colAvg;
+    vec3 col, colT, colM, col3;
+	vec4 objectToExclude;
+	vec4 initialObjects; initialObjects.x = 0.0; initialObjects.y = 0.0; initialObjects.z = 0.0; initialObjects.w = 0.0;
+	int excludeFloor;
+	//Shoot the first ray from the camera location -- get position, normal and color
+    if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
 	
-	//Adding antialiasing (manually)
-	//In this case, instead of just shooting 1 ray from the eye vector, we shoot 9 rays and for each one compute all the calculations
-	//After we get all 9 results, we average them to create the smooth surface
-	
-	for(float i = -1.0; i < 2.0; i++) {
-		for(float j = -1.0; j < 2.0; j++) {
-		
-			//Calculate offset
-			cameraDir.x = cameraDir.x + (i * 0.0001);
-			cameraDir.y = cameraDir.y + (j * 0.0001);
-			
-			//Shoot the ray from the camera location -- get position, normal and color
-			if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
-			
-			//Do the following for each of the lights, then take the average
-			  float lightIntensity = 1.0;
-			  
-			  colT1 = colT;
-			  col = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
-			  
-			  float offset = 1.0;
-			  p1.x += offset;
-			  p1.y += offset;
-			  p1.z += offset;
-			  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
-				col.x = 0.3 * colT1.x; col.y = 0.3 * colT1.y; col.z = 0.3 * colT1.z;
-			  }
-			  
-			  colAvg.x += col.x; 
-			  colAvg.y += col.y;
-			  colAvg.z += col.z;
-			  //gl_FragColor = vec4(col, 1.0);
-			}
-			else {
-				colAvg.x += 0.3;
-				colAvg.y += 0.3;
-				colAvg.z += 0.3;
-			  //gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-			}
-		}
-	}
-	
-	//Average the results and compute the fragment color accordingly
-	colAvg.x = colAvg.x / 9.0;
-	colAvg.y = colAvg.y / 9.0;
-	colAvg.z = colAvg.z / 9.0;
-	
-	//Shade the pixel
-	gl_FragColor = vec4(colAvg, 1.0);
+	//Do the following for each of the lights, then take the average
+	  float lightIntensity = 1.0;
+	  
+	  col = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
+	  
+      float offset = 1.0;
+	  p1.x += offset;
+	  p1.y += offset;
+	  p1.z += offset;
+	  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
+		col.x = 0.0; col.y = 0.0; col.z = 0.0;
+      }
+	  
+      gl_FragColor = vec4(col, 1.0);
+    }
+    else {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
   }
 </script>
 
@@ -425,12 +398,12 @@
 	//Set up the spheres
 	sphere1Center = gl.getUniformLocation(shaderProgram, "sphere1Center");
     sphere2Center = gl.getUniformLocation(shaderProgram, "sphere2Center");
-    //sphere3Center = gl.getUniformLocation(shaderProgram, "sphere3Center");
+    sphere3Center = gl.getUniformLocation(shaderProgram, "sphere3Center");
 	
 	//Set up the triangle
-	//triangleVertex1 = gl.getUniformLocation(shaderProgram, "triangleVertex1");
-	//triangleVertex2 = gl.getUniformLocation(shaderProgram, "triangleVertex2");
-	//triangleVertex3 = gl.getUniformLocation(shaderProgram, "triangleVertex3");
+	triangleVertex1 = gl.getUniformLocation(shaderProgram, "triangleVertex1");
+	triangleVertex2 = gl.getUniformLocation(shaderProgram, "triangleVertex2");
+	triangleVertex3 = gl.getUniformLocation(shaderProgram, "triangleVertex3");
   }
 
 
@@ -481,7 +454,7 @@
     arr.push(v.x, v.y, v.z);
   }
 
-  t = 0.60;
+  t = 0;
   function drawScene()
   {
   /*
@@ -553,22 +526,21 @@
     gl.uniform3f(cameraPos, cameraFrom.x, cameraFrom.y, cameraFrom.z);
     gl.uniform3f(sphere1Center, x1, y1, z1);
     gl.uniform3f(sphere2Center, x2, y2, z2);
-    //gl.uniform3f(sphere3Center, x3, y3, z3);
+    gl.uniform3f(sphere3Center, x3, y3, z3);
 	
 	//Setup the triangle
-	//gl.uniform3f(triangleVertex1, x4, y4, z4);
-	//gl.uniform3f(triangleVertex2, x5, y5, z5);
-	//gl.uniform3f(triangleVertex3, x6, y6, z6);
+	gl.uniform3f(triangleVertex1, x4, y4, z4);
+	gl.uniform3f(triangleVertex2, x5, y5, z5);
+	gl.uniform3f(triangleVertex3, x6, y6, z6);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
 	
-  //  t += 0.03;
-
-/*    if (t > Math.PI * 200) {
+    t += 0.03;
+    if (t > Math.PI * 200) {
       t -= Math.PI * 200;
     }
-	*/
+	
   }
 
   var timer = 0;

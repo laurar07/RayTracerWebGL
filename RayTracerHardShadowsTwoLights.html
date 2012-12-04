@@ -22,7 +22,37 @@
                        out float dist) {
 					   
 	//Spheres have been designed with radius of 1.0
-    vec3 c = center - lStart;
+	//at2 + bt + c = 0
+	float a = 1.0;
+	float b = 2.0 * (lDir.x * (lStart.x - center.x) + (lDir.y * (lStart.y - center.y)) + (lDir.z * (lStart.z - center.z)));
+	float c = (lStart.x - center.x) * (lStart.x - center.x) + (lStart.y - center.y) * (lStart.y - center.y) + (lStart.z - center.z) * (lStart.z - center.z) - 1.0;
+	
+	float determinant = b * b - 4.0 * a * c;
+	if(determinant < 0.0) {
+		//If the determinant is zero, no intersection
+		dist = 10000.0; //Place the distance at a really high value
+		return false;
+	}
+	
+	float t1 = (-1.0 * b + sqrt(determinant)) / 2.0;
+	float t2 = (-1.0 * b - sqrt(determinant)) / 2.0;
+	
+	if((t1 <= 0.1 && t2 <= 0.1))
+	{
+		dist = 10000.0; //Place the distance at a really high value
+		return false;
+	} else if (t1 <= 0.1) {
+		//Take t2
+		dist = t2;
+	} else if (t2 <= 0.1) {
+		//Take t1
+		dist = t1;
+	} else {
+		//Take the min
+		dist = min(t1, t2);
+	}
+	/*
+	vec3 c = center - lStart;
     float b = dot(lDir, c);
 	float d = b*b - dot(c, c) + 1.0; //First, calculate the determinant
     if (d < 0.0) {
@@ -39,7 +69,7 @@
       dist = 10000.0; //Place the distance at a really high value 
       return false;
     }
-
+	*/
 	//If we are here, we found an intersection
     return true;
   }
@@ -269,29 +299,31 @@
 	//Calculate the intersections with 3 spheres
 	//d1, d2, d3 represent the distances
     h1 = intersectSphere(sphere1Center, lStart, lDir, d1);
-    h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
+    //h2 = intersectSphere(sphere2Center, lStart, lDir, d2);
     h3 = intersectSphere(sphere3Center, lStart, lDir, d3);
 	h4 = intersectTriangle(triangleVertex1, triangleVertex2, triangleVertex3, lStart, lDir, d4, triangle_norm);
 
-    if (h1 && d1 < d2 && d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
+    if (h1 && /*d1 < d2 &&*/ d1 < d3 && d1 < d4 /*&& excludeObject.x != 1.0*/) {
 		//Sphere1 intersected and the intersection is the smallest distance
 		pos = lStart + d1 * lDir;
 		normal = pos - sphere1Center;
-		color = vec3(0.0, 0.0, 0.9);
+		color = vec3(0.574, 0.4375, 0.8554);
 		//objectHit.x = 1.0;
     }
-    else if (h2 && d2 < d3 && d2 < d4 /*&& excludeObject.y != 1.0*/) {
+	/*
+    else if (h2 && d2 < d3 && d2 < d4) {
 		//Sphere2 intersected and the intersection is the smallest distance
 		pos = lStart + d2 * lDir;
 		normal = pos - sphere2Center;
 		color = vec3(0.9, 0.0, 0.0);
 		//objectHit.y = 1.0;
     }
+	*/
     else if (h3 && d3 < d4 /*&& excludeObject.z != 1.0*/) {
 		//Sphere3 intersected
 		pos = lStart + d3 * lDir;
 		normal = pos - sphere3Center;
-		color = vec3(0.0, 0.9, 0.0);
+		color = vec3(0.9, 0.5468, 0.0);
 		//objectHit.z = 1.0;
     }
 	else if(h4 /*&& excludeObject.w != 1.0*/) {
@@ -299,7 +331,7 @@
 		pos = lStart + d4 * lDir;
 		//normal = pos - sphere3Center;
 		normal = triangle_norm;
-		color = vec3(0.0, 1.0, 0.0);
+		color = vec3(0.0, 0.39, 0.0);
 		//objectHit.w = 1.0;
 	}
     else if (lDir.y < -0.01 /*&& excludeFloor != 1*/) {
@@ -332,18 +364,11 @@
 
     vec3 p1, norm, norm1, p2;
     vec3 col, col2, colT, colT1, colM, col3;
-	vec4 objectToExclude;
-	vec4 initialObjects; initialObjects.x = 0.0; initialObjects.y = 0.0; initialObjects.z = 0.0; initialObjects.w = 0.0;
-	int excludeFloor;
+	
 	//Shoot the first ray from the camera location -- get position, normal and color
     if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
 	
 	  float lightIntensity = 1.0;
-	  
-      float offset = 1.0;
-	  p1.x += offset;
-	  p1.y += offset;
-	  p1.z += offset;
 	  
 	  colT1 = colT;		//Save the value of colT to use with the light calculation
 	  norm1 = norm;
@@ -352,7 +377,7 @@
 	  bool notReachLight2 = intersectWorld(p1, lightDir2, p2, norm, colT);
 	  
 	  if (notReachLight1 && notReachLight2) {
-		col.x = 0.0; col.y = 0.0; col.z = 0.0;
+		col.x = 0.3 * colT1.x; col.y = 0.3 * colT1.y; col.z = 0.3 * colT1.z;
 	  } else if(notReachLight1) {
 		col = lightAt(norm1, -cameraDir, lightDir2, lightIntensity, colT1);
 	  } else if(notReachLight2) {
@@ -376,7 +401,7 @@
       gl_FragColor = vec4(col, 1.0);
     }
     else {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+      gl_FragColor = vec4(0.3, 0.3, 0.3, 1.0);
     }
   }
 </script>
