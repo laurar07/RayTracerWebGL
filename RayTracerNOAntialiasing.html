@@ -277,14 +277,14 @@
     vec3 cameraDir = normalize(vPosition - cameraPos);
 
     vec3 p1, norm, p2;
-    vec3 col, colT, colM, col3, colAvg;
+    vec3 col, colT, colT1, colM, col3, colAvg;
 			
 	//Shoot the ray from the camera location -- get position, normal and color
 	if (intersectWorld(cameraPos, cameraDir, p1, norm, colT)) {
 	
 	//Do the following for each of the lights, then take the average
 	  float lightIntensity = 1.0;
-	  
+	  colT1 = colT;
 	  col = lightAt(norm, -cameraDir, lightDir, lightIntensity, colT);
 	  
 	  float offset = 1.0;
@@ -292,13 +292,13 @@
 	  p1.y += offset;
 	  p1.z += offset;
 	  if (intersectWorld(p1, lightDir, p2, norm, colT)) {
-		col.x = 0.0; col.y = 0.0; col.z = 0.0;
+		col.x = 0.3 * colT1.x; col.y = 0.3 * colT1.y; col.z = 0.3 * colT1.z;
 	  }
 	  
 	  gl_FragColor = vec4(col, 1.0);
 	}
 	else {
-	  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+	  gl_FragColor = vec4(0.3, 0.3, 0.3, 1.0);
 	}
   }
 </script>
